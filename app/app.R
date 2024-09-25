@@ -1,20 +1,15 @@
 ## SHINY LANDCOVER APP ##
 
-# Packages  -----------------------------------------------------------
-if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.org")
-if(!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
-if(!require(bslib)) install.packages("bslib", repos = "http://cran.us.r-project.org")
-if(!require(leaflet)) install.packages("leaflet", repos = "http://cran.us.r-project.org")
-if(!require(dplyr)) install.packages("dplyr", repos = "http://cran.us.r-project.org")
-if(!require(tidyr)) install.packages("tidyr", repos = "http://cran.us.r-project.org")
-if(!require(shinyWidgets)) install.packages("shinyWidgets", repos = "http://cran.us.r-project.org")
-if(!require(ggiraph)) install.packages("ggiraph", repos = "http://cran.us.r-project.org")
-#if(!require(leaflet.extras)) install.packages("leaflet.extras", repos = "http://cran.us.r-project.org")
-if(!require(sf)) install.packages("sf", repos = "http://cran.us.r-project.org")
-if(!require(osmdata)) install.packages("osmdata", repos = "http://cran.us.r-project.org")
-if(!require(gargoyle)) install.packages("gargoyle", repos = "http://cran.us.r-project.org")
-if(!require(gt)) install.packages("gt", repos = "http://cran.us.r-project.org")
+# Packages  -------------------------------------------------------------------
+if (!require("Require")) {
+  install.packages("Require")
+  require("Require")
+}
 
+Require(c("shiny", "ggplot2", "bslib", "leaflet", "dplyr", "tidyr", "shinyWidgets", "ggiraph", 
+          "sf", "osmdata", "gargoyle", "gt"))
+
+# Functions and modules --------------------------------------------------------
 source('helpers/CalculateLandCover.R')
 source('helpers/core_mapping.R')
 
@@ -37,6 +32,7 @@ ynames <- c("Tree Cover (%)", "Shrubland (%)", "Grassland (%)", "Cropland (%)")
 
 names(plot_vars) = plot_labs
 
+raster_cats = read.csv('helpers/worldcover_cats.csv')
 
 # Define UI  -----------------------------------------------------------
 
@@ -50,18 +46,12 @@ ui <- page_sidebar(
     fillable = FALSE,
     sidebar = sidebar(h4('Instructions'),
                       uiOutput("instructions")
-                      # br(),
-                      # h6('Follow the steps!')
                       ),
     card(
       layout_sidebar(
           sidebar = sidebar(
             title = "Step 1. Generate map of potential sites.",
             h6('Please select a region of interest using the box tool on map.'),
-            # numericInput("xmin", "Enter minimum longitude:", value = 7.690353),
-            # numericInput("xmax", "Enter maximum longitude:", value = 9.5),
-            # numericInput("ymin", "Enter minimum latitude:", value = 5.162930),
-            # numericInput("ymax", "Enter maximum latitude:", value = 7),
 
             selectInput("selection_type", "Type of site:", choices = c("random", "village")),
             
@@ -102,44 +92,54 @@ ui <- page_sidebar(
         title = 'Step 3. Filter and compare sites.',
         fileInput("landcsv", "Upload previously analyzed landcover data (optional):",
                   accept = c(".csv")),
-        pickerInput(inputId = "x",
-                    label = "X-Axis",
-                    choices = plot_vars,
-                    select = plot_vars[1]),
-        pickerInput(inputId = "y",
-                    label = "Y-Axis",
-                    choices = plot_vars,
-                    select = plot_vars[2]),
-        sliderInput(inputId = "BuiltUpSelect", 
-                    label = "Proportion Built-up", 
-                    min = 0,
-                    step = 0.05,
-                    max = 1,
-                    value = c(0,1)), 
-        sliderInput(inputId = "TreeSelect", 
-                    label = "Proportion Treecover", 
-                    min = 0,
-                    step = 0.05,
-                    max = 1,
-                    value = c(0,1)), 
-        sliderInput(inputId = "CropSelect", 
-                    label = "Proportion Cropland", 
-                    min = 0,
-                    step=0.05,
-                    max = 1,
-                    value = c(0,1)), 
-        sliderInput(inputId = "GrassSelect", 
-                    label = "Proportion Grassland", 
-                    min = 0,
-                    max = 1,
-                    step=0.05,
-                    value = c(0,1)),
-        sliderInput(inputId = "ShrubSelect", 
-                    label = "Proportion Shrubland", 
-                    min = 0,
-                    max = 1,
-                    step=0.05,
-                    value = c(0,1)),
+        # Create a fluid row to place X and Y axis inputs side by side
+        fluidRow(
+          column(6, selectInput("x_lc", "X-axis landcover", "")),  # X-axis label choice
+          column(6, selectInput("x_m", "X-axis measurement", ""))  # X-axis measurement choice
+        ),
+        fluidRow(
+          column(6, selectInput("y_lc", "Y-axis landcover", "")), 
+
+          column(6, selectInput("y_m", "Y-axis measurement", ""))   # Y-axis measurement choice
+        ),
+        # pickerInput(inputId = "x",
+        #             label = "X-Axis",
+        #             choices = plot_vars,
+        #             select = plot_vars[1]),
+        # pickerInput(inputId = "y",
+        #             label = "Y-Axis",
+        #             choices = plot_vars,
+        #             select = plot_vars[2]),
+        # sliderInput(inputId = "BuiltUpSelect", 
+        #             label = "Proportion Built-up", 
+        #             min = 0,
+        #             step = 0.05,
+        #             max = 1,
+        #             value = c(0,1)), 
+        # sliderInput(inputId = "TreeSelect", 
+        #             label = "Proportion Treecover", 
+        #             min = 0,
+        #             step = 0.05,
+        #             max = 1,
+        #             value = c(0,1)), 
+        # sliderInput(inputId = "CropSelect", 
+        #             label = "Proportion Cropland", 
+        #             min = 0,
+        #             step=0.05,
+        #             max = 1,
+        #             value = c(0,1)), 
+        # sliderInput(inputId = "GrassSelect", 
+        #             label = "Proportion Grassland", 
+        #             min = 0,
+        #             max = 1,
+        #             step=0.05,
+        #             value = c(0,1)),
+        # sliderInput(inputId = "ShrubSelect", 
+        #             label = "Proportion Shrubland", 
+        #             min = 0,
+        #             max = 1,
+        #             step=0.05,
+        #             value = c(0,1)),
         # pickerInput(inputId = "maptype", 
         #             label = "Map Type", 
         #             choices = c('street', 'satellite'), 
@@ -164,7 +164,7 @@ ui <- page_sidebar(
 
 # Define Server -----------------------------------------------------------
 
-server <- function(input, output) {
+server <- function(session, input, output) {
 
   sites <- reactiveVal(NULL)
   raster <- reactiveVal(NULL)
@@ -259,20 +259,35 @@ server <- function(input, output) {
 
     # load landcover
     r = rast(input$rastfile$datapath)
+    
     #r = crop(r, ext(bounds(), xy=TRUE))
 
     # store raster for use
+    levels(r) = raster_cats
     raster(r)
-
+    
+    #c = terra::cats(r)[[1]]%>%rename(lc_value = value)
+    #raster_cats(c)
+    
     output$landcoverMap <- renderPlot({
       plot(r)
-      #plot(st_geometry(sites()), col="blue", pch=8, add=T)
+      plot(st_geometry(sites()), col="blue", pch=8, add=T)
     })
 
     withProgress(message = "Calculating landcover values", value=0, {
-      out_df = createLCDataFrame(sites(), raster=raster(), dist=input$radius, progress=F)
+      out_df = createLCDataFrame(sites(), raster=raster(), dist=input$radius, progress=T)
+      
       df(out_df)
     })
+    
+    
+  })
+  
+  observe({
+    updateSelectInput(session, "x_lc", choices=unique(df()$cover))
+    updateSelectInput(session, "y_lc", choices=unique(df()$cover))
+    updateSelectInput(session, "x_m", choices=unique(df()$measure))
+    updateSelectInput(session, "y_m", choices=unique(df()$measure))
   })
 
   #### STEP 3 SERVER ####
@@ -283,43 +298,36 @@ server <- function(input, output) {
     }
     else{req(df())}
 
-    filter_data = df()%>%
-      # filter(radius == input$RadiusSelect)%>%
-      #filter(between(dist_to_road, input$RoadDist[1], input$RoadDist[2]))%>%
-      #filter(between(travel_time, input$TravTime[1], input$TravTime[2]))%>%
-      filter(between(builtup_percent, input$BuiltUpSelect[1], input$BuiltUpSelect[2]))%>%
-      filter(between(treecover_percent, input$TreeSelect[1], input$TreeSelect[2]))%>%
-      filter(between(cropland_percent, input$CropSelect[1], input$CropSelect[2]))%>%
-      filter(between(grassland_percent, input$GrassSelect[1], input$GrassSelect[2]))%>%
-      filter(between(shrubland_percent, input$ShrubSelect[1], input$ShrubSelect[2]))
-    
-    filter_data(filter_data)
+    # filter_data = df()%>%
+    #   filter(between(builtup_percent, input$BuiltUpSelect[1], input$BuiltUpSelect[2]))%>%
+    #   filter(between(treecover_percent, input$TreeSelect[1], input$TreeSelect[2]))%>%
+    #   filter(between(cropland_percent, input$CropSelect[1], input$CropSelect[2]))%>%
+    #   filter(between(grassland_percent, input$GrassSelect[1], input$GrassSelect[2]))%>%
+    #   filter(between(shrubland_percent, input$ShrubSelect[1], input$ShrubSelect[2]))
+    # 
+    # filter_data(filter_data)
     
     output$landcoverData <- DT::renderDT({
-      filter_data()
+      df()
     })
     
-
-
+    filter_data = df()%>%
+      filter((cover == input$x_lc & measure == input$x_m) |
+             (cover == input$y_lc & measure == input$y_m)) %>%
+      pivot_wider(names_from = cover, values_from = value)
+    
     output$gradientPlot<- renderGirafe({
       p1 <- filter_data%>%
-        ggplot(aes_string(input$x, input$y))+
+        ggplot(aes_string(input$x_lc, input$y_lc))+
         geom_point_interactive(aes(tooltip = site, data_id=site_id, color=added))+
         scale_color_manual(values=c('black','red'),
                            labels = c('Additional Sites', 'Input Sites'))+
-        labs(x=names(plot_vars)[plot_vars == input$x], 
-             y=names(plot_vars)[plot_vars == input$y],
+        labs(x=paste(input$x_lc, input$x_m), 
+             y=paste(input$y_lc, input$y_m), 
              color=NULL)+
         theme_classic()
 
-      p2 <- filter_data%>%
-        ggplot(aes_string(input$x, input$y))+
-        geom_point_interactive(aes(tooltip = site, data_id=site_id, color=added))+
-        scale_color_manual(values=c('black','red'),
-                           labels = c('Additional Sites', 'Input Sites'))+
-        labs(x=names(plot_vars)[plot_vars == input$x], 
-             y=names(plot_vars)[plot_vars == input$y],
-             color=NULL)+
+      p2 <- p1+
         coord_trans(x = 'log10', y = 'log10')+
         theme_classic()
 
