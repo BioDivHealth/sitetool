@@ -39,8 +39,9 @@ calculatePatchMetrics <- function(raster_crop, cell_areas) {
   patch_areas = lapply(p, function(x){
     z = zonal(cell_areas, x, sum)
     data.frame(layer = names(x),
-               mn_patch_area = mean(z$area, na.rm=T),
-               sd_patch_area = sd(z$area, na.rm=T))
+               mean_patch_area = mean(z$area, na.rm=T)
+              # sd_patch_area = sd(z$area, na.rm=T)
+              )
   })
     
   patch_areas = do.call(rbind, patch_areas)
@@ -76,6 +77,7 @@ createLCDataFrame <- function(in_df, raster, dist, progress=F){
     d_temp = cbind(class_tot, class_area)
     d_temp$site = in_df$site[i]
     d_temp$site_id = in_df$site_id[i]
+    d_temp$input_site = in_df$input_site[i]
     if(progress){incProgress(1/nrow(in_df), detail = paste("Site number:", i))}
     return(d_temp)
   })
@@ -87,7 +89,7 @@ createLCDataFrame <- function(in_df, raster, dist, progress=F){
     mutate(total_area = sum(area))%>%
     group_by(site_id, cover)%>%
     mutate(proportion = area/total_area)%>%
-    pivot_longer(c(area, mn_patch_area, sd_patch_area, proportion), names_to = 'measure', values_to = 'value')%>%
+    pivot_longer(c(area, mean_patch_area, proportion), names_to = 'measure', values_to = 'value')%>%
     select(-c(layer, total_area))
 
   return(df)

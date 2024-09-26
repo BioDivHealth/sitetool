@@ -15,7 +15,7 @@ core_mapping_module_ui <- function(id) {
   )
 }
 
-core_mapping_module_server <- function(id, common, main_input, COMPONENT_MODULES) {
+core_mapping_module_server <- function(id, common) {
   moduleServer(id, function(input, output, session) {
     # create map
     output$map <- renderLeaflet(
@@ -59,32 +59,32 @@ core_mapping_module_server <- function(id, common, main_input, COMPONENT_MODULES
       gargoyle::trigger("change_poly")
     }) %>% bindEvent(input$map_draw_new_feature)
 
-    component <- reactive({
-      main_input$tabs
-    })
+    # component <- reactive({
+    #   main_input$tabs
+    # })
+    # 
+    # module <- reactive({
+    #   if (component() == "intro") "intro"
+    #   else main_input[[glue("{component()}Sel")]]
+    # })
 
-    module <- reactive({
-      if (component() == "intro") "intro"
-      else main_input[[glue("{component()}Sel")]]
-    })
-
-    observe({
-      req(module())
-      current_mod <- module()
-      gargoyle::on(current_mod, {
-        map_fx <- COMPONENT_MODULES[[component()]][[module()]]$map_function
-        if (!is.null(map_fx)) {
-          do.call(map_fx, list(map, common = common))
-        }
-      })
-    })
+    # observe({
+    #   req(module())
+    #   current_mod <- module()
+    #   gargoyle::on(current_mod, {
+    #     map_fx <- COMPONENT_MODULES[[component()]][[module()]]$map_function
+    #     if (!is.null(map_fx)) {
+    #       do.call(map_fx, list(map, common = common))
+    #     }
+    #   })
 
     return(map)
-})
-}
+  })
+  }
 
 
-select_query_module_map <- function(map, common, sites) {
+
+map_points <- function(map, common, sites) {
   
   if (!is.null(sites) && nrow(sites) > 0) {
     map <- map %>%
@@ -96,7 +96,7 @@ select_query_module_map <- function(map, common, sites) {
                        popup = ~paste0("Site:", site,
                                        "<br>LAT: ", st_coordinates(geometry)[,2],
                                        "<br>LNG: ", st_coordinates(geometry)[,1]),
-                       color = ~ifelse(added, "red", "blue"),  # Change color if needed
+                       color = ~ifelse(input_site, "red", "blue"),  # Change color if needed
                        radius = 5,
                        fillOpacity = 0.8)%>%
       addLegend(

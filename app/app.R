@@ -81,7 +81,7 @@ ui <- page_sidebar(
         h6('Upload a GeoTIFF covering the above area.'),
         fileInput("rastfile", "Choose a GeoTIFF File:",
                   accept = c("tif", ".tiff")),
-        numericInput("radius", "Enter radius from site center to analyze landcover (meters):", value = 2000),
+        numericInput("radius", "Enter radius from site center to analyze landcover (meters):", value = 1000),
         actionButton("goStep2", "Go")
       ),
       plotOutput("landcoverMap")
@@ -93,15 +93,13 @@ ui <- page_sidebar(
         fileInput("landcsv", "Upload previously analyzed landcover data (optional):",
                   accept = c(".csv")),
         # Create a fluid row to place X and Y axis inputs side by side
-        fluidRow(
-          column(6, selectInput("x_lc", "X-axis landcover", "")),  # X-axis label choice
-          column(6, selectInput("x_m", "X-axis measurement", ""))  # X-axis measurement choice
-        ),
-        fluidRow(
-          column(6, selectInput("y_lc", "Y-axis landcover", "")), 
-
-          column(6, selectInput("y_m", "Y-axis measurement", ""))   # Y-axis measurement choice
-        ),
+        h6('X-Axis'),
+        selectInput("x_lc", "X Landcover Category", ""),  # X-axis label choice
+        selectInput("x_m", "X Measurement", ""),  # X-axis measurement choice
+        
+        h6('Y-Axis'),
+        selectInput("y_lc", "Y Landcover Category", ""),  # X-axis label choice
+        selectInput("y_m", "Y Measurement", ""),  # X-axis measurement choice
         # pickerInput(inputId = "x",
         #             label = "X-Axis",
         #             choices = plot_vars,
@@ -144,8 +142,8 @@ ui <- page_sidebar(
         #             label = "Map Type", 
         #             choices = c('street', 'satellite'), 
         #             select = "satellite"),
-        checkboxInput('log_scale','Log Scale?'),
-        actionButton("goStep3", "Go")
+        checkboxInput('log_scale','Log Scale?')
+       # actionButton("goStep3", "Go")
       ),
         nav_panel(title='Scatterplot',
                   fillable=T,
@@ -165,42 +163,33 @@ ui <- page_sidebar(
 # Define Server -----------------------------------------------------------
 
 server <- function(session, input, output) {
-
+  
+  ## Reactive Values ##
   sites <- reactiveVal(NULL)
   raster <- reactiveVal(NULL)
   bounds <- reactiveVal(NULL)
   df <- reactiveVal(NULL)
   filter_data <- reactiveVal(NULL)
+  mapvals <- reactiveValues(poly = NULL)
   
-  # Common reactive values (shared across components)
-  common <- reactiveValues(poly = NULL)
+  ## Base Map ##
+  map = core_mapping_module_server("siteMap", mapvals)
   
-  # Example structure of main_input and COMPONENT_MODULES
-  main_input <- reactiveValues(tabs = "intro") 
-  COMPONENT_MODULES <- list(
-    intro = list(intro = list(map_function = NULL))
-    # Add other components and map functions here
-  )
-  
-  gargoyle::init("intro")
-  
-  map = core_mapping_module_server("siteMap", common, main_input, COMPONENT_MODULES)
-  
+  ## Output Text ##
   output$instructions <- renderUI({includeMarkdown("instructions.md")})
-  
   
   #### STEP 1 SERVER ####
   observeEvent(input$goStep1, {
-      req(common$poly)
+      req(mapvals$poly)
         
         # Create bounding box from user input
-      search_area <- c(common$xmin, common$ymin, common$xmax, common$ymax)
+      search_area <- c(mapvals$xmin, mapvals$ymin, mapvals$xmax, mapvals$ymax)
       bounds(search_area)
       
       # Output bounding box coordinates
       output$boundingBoxCoords <- renderText({
-        paste0("(", common$xmin, ", ", common$ymin, ", ", 
-              common$xmax, ", ", common$ymax, ")")
+        paste0("(", mapvals$xmin, ", ", mapvals$ymin, ", ", 
+              mapvals$xmax, ", ", mapvals$ymax, ")")
       })
       
     
@@ -214,7 +203,7 @@ server <- function(session, input, output) {
         sites_filter <- sites_data$osm_points %>%
           select(osm_id, name, geometry) %>%
           rename(site_id = osm_id, site = name) %>%
-          mutate(added = FALSE)%>%
+          mutate(input_site = FALSE)%>%
           filter(!is.na(site))
       }
       
@@ -222,20 +211,20 @@ server <- function(session, input, output) {
         sites_filter = data.frame(
           site = as.character(1:input$num_sites),
           site_id = paste0('random_', 1:input$num_sites),
-          added = FALSE,
-          lat = runif(input$num_sites, min = common$ymin, max = common$ymax),
-          lon = runif(input$num_sites, min = common$xmin, max = common$xmax)
+          input_site = FALSE,
+          lat = runif(input$num_sites, min = mapvals$ymin, max = mapvals$ymax),
+          lon = runif(input$num_sites, min = mapvals$xmin, max = mapvals$xmax)
         )%>%
         st_as_sf(coords=c('lon', 'lat'), crs=4326)  
       }
   
       if(!is.null(input$csvfile)){
         candidate = read.csv(input$csvfile$datapath)
-        candidate$added= TRUE
+        candidate$input_site= TRUE
         candidate$site_id = paste0('input_',1:3)
         candidate = st_as_sf(candidate, coords = c("longitude", "latitude"),
                  crs = "epsg:4326")%>%
-          select(c(site, site_id, added))
+          select(c(site, site_id, input_site))
   
         sites_filter = rbind(candidate, sites_filter)
       }
@@ -248,7 +237,7 @@ server <- function(session, input, output) {
       })
       
       # update map with selected sites
-      select_query_module_map(map, common, sites())
+      map_points(map, mapvals, sites())
 
   })
 
@@ -266,12 +255,9 @@ server <- function(session, input, output) {
     levels(r) = raster_cats
     raster(r)
     
-    #c = terra::cats(r)[[1]]%>%rename(lc_value = value)
-    #raster_cats(c)
-    
     output$landcoverMap <- renderPlot({
       plot(r)
-      plot(st_geometry(sites()), col="blue", pch=8, add=T)
+      plot(st_geometry(sites()), col="white", pch=8, add=T)
     })
 
     withProgress(message = "Calculating landcover values", value=0, {
@@ -279,19 +265,17 @@ server <- function(session, input, output) {
       
       df(out_df)
     })
-    
-    
   })
   
   observe({
-    updateSelectInput(session, "x_lc", choices=unique(df()$cover))
-    updateSelectInput(session, "y_lc", choices=unique(df()$cover))
-    updateSelectInput(session, "x_m", choices=unique(df()$measure))
-    updateSelectInput(session, "y_m", choices=unique(df()$measure))
+    updateSelectInput(session, "x_lc", choices=unique(df()$cover), select=unique(df()$cover[1]))
+    updateSelectInput(session, "y_lc", choices=unique(df()$cover), select=unique(df()$cover[2]))
+    updateSelectInput(session, "x_m", choices=unique(df()$measure), select='proportion')
+    updateSelectInput(session, "y_m", choices=unique(df()$measure), select='proportion')
   })
 
   #### STEP 3 SERVER ####
-  observeEvent(input$goStep3, {
+  observeEvent(list(input$landcsv, input$x_lc, input$y_lc, input$x_m, input$y_m), {
     if(!is.null(input$landcsv)){
       indata = read.csv(input$landcsv$datapath)
       df(indata)
@@ -312,14 +296,21 @@ server <- function(session, input, output) {
     })
     
     filter_data = df()%>%
+      ungroup()%>%
       filter((cover == input$x_lc & measure == input$x_m) |
              (cover == input$y_lc & measure == input$y_m)) %>%
-      pivot_wider(names_from = cover, values_from = value)
+      mutate(cover_measure = paste0(cover, measure)) %>%  # Create a new column
+      select(-c(measure, cover))%>%
+      pivot_wider(names_from = cover_measure, values_from = value)
     
+    str(filter_data)
+    paste0(input$x_lc, input$x_m)
+
     output$gradientPlot<- renderGirafe({
       p1 <- filter_data%>%
-        ggplot(aes_string(input$x_lc, input$y_lc))+
-        geom_point_interactive(aes(tooltip = site, data_id=site_id, color=added))+
+        ggplot(aes(x =!!sym(paste0(input$x_lc, input$x_m)), 
+                   y = !!sym(paste0(input$y_lc, input$y_m))))+
+        geom_point_interactive(aes(tooltip = site, data_id=site_id, color=input_site))+
         scale_color_manual(values=c('black','red'),
                            labels = c('Additional Sites', 'Input Sites'))+
         labs(x=paste(input$x_lc, input$x_m), 
@@ -349,37 +340,39 @@ server <- function(session, input, output) {
     
     output$compPlot <- renderPlot({
       
-      filter_data%>%
-        pivot_longer(c(treecover_percent, shrubland_percent, grassland_percent, cropland_percent), names_to='parameter', values_to='value')%>%
-        mutate(group = ifelse(added==TRUE, 'Input Sites', 'All Sites'),
+      df()%>%
+        subset(measure == 'proportion')%>%
+        subset(cover %in% c('treecover', 'shrubland', 'grassland', 'cropland', 'builtup'))%>%
+        mutate(group = ifelse(input_site==TRUE, 'Input Sites', 'All Sites'),
                group = factor(group, c('Input Sites', 'All Sites')))%>%
         ggplot()+
-        geom_violin(aes(value*100, parameter, fill=group), draw_quantiles = c(0.25, 0.5, 0.75))+
+        geom_violin(aes(value*100, cover, fill=group), draw_quantiles = c(0.25, 0.5, 0.75))+
         scale_fill_manual(values=c('red','blue'), drop=FALSE)+
         guides(fill = guide_legend(reverse = TRUE))+
-        scale_y_discrete(labels=rev(ynames))+
+        # scale_y_discrete(labels=rev(ynames))+
         labs(x='Percent', y='', fill=NULL)+
         theme_minimal()+
         theme(axis.text.y = element_text(face="bold", colour = "black", size=12),
               axis.title.x = element_text(face="bold", colour = "black", size=12),
               legend.position = 'bottom')
+      
     
     })
     
     
-    output$statsTable <- render_gt(
-      expr = filter_data%>%
-        pivot_longer(c(treecover_percent, shrubland_percent, grassland_percent, cropland_percent), 
-                     names_to = 'parameter', values_to = 'value') %>%
-        group_by(parameter) %>%
-        summarize(
-          t_statistic = t.test(value ~ added, alternative=c("two.sided"))$statistic,
-          t_test_p = t.test(value ~ added, alternative=c("two.sided"))$p.value)%>%
-        arrange(rev(parameter))%>%
-        mutate(parameter = ynames)%>%
-          gt()%>%
-          data_color(columns=t_test_p, fn=palette)
-        )
+    # output$statsTable <- render_gt(
+    #   expr = df()%>%
+    #     pivot_longer(c(treecover_percent, shrubland_percent, grassland_percent, cropland_percent), 
+    #                  names_to = 'parameter', values_to = 'value') %>%
+    #     group_by(parameter) %>%
+    #     summarize(
+    #       t_statistic = t.test(value ~ input_site, alternative=c("two.sided"))$statistic,
+    #       t_test_p = t.test(value ~ input_site, alternative=c("two.sided"))$p.value)%>%
+    #     arrange(rev(parameter))%>%
+    #     mutate(parameter = ynames)%>%
+    #       gt()%>%
+    #       data_color(columns=t_test_p, fn=palette)
+    #     )
     
     })
   
@@ -388,7 +381,7 @@ server <- function(session, input, output) {
       paste0("landcover_analyzer_export.csv")
     },
     content = function(file){
-      write.csv(filter_data(), file, row.names = FALSE)
+      write.csv(df(), file, row.names = FALSE)
     }
   )
 }
