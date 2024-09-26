@@ -26,7 +26,7 @@ plot_labs = c('Fragmentation (mean patch area)', 'Proportion treecover', 'Propor
               'Proportion cropland', 'Proportion built-up', 'Treecover mean patch area', 'Built-up mean patch area',
               'Cropland mean patch area')
 
-palette <- scales::col_bin(palette=c('red','yellow','green'), bins=c(0.05,.1,1))
+palette <- scales::col_bin(palette=c('red','yellow','green'), bins=c(0,.05,0.1,1))
 
 ynames <- c("Tree Cover (%)", "Shrubland (%)", "Grassland (%)", "Cropland (%)")
 
@@ -302,9 +302,6 @@ server <- function(session, input, output) {
       mutate(cover_measure = paste0(cover, measure)) %>%  # Create a new column
       select(-c(measure, cover))%>%
       pivot_wider(names_from = cover_measure, values_from = value)
-    
-    str(filter_data)
-    paste0(input$x_lc, input$x_m)
 
     output$gradientPlot<- renderGirafe({
       p1 <- filter_data%>%
@@ -346,30 +343,30 @@ server <- function(session, input, output) {
         mutate(group = ifelse(input_site==TRUE, 'Input Sites', 'All Sites'),
                group = factor(group, c('Input Sites', 'All Sites')))%>%
         ggplot()+
-        geom_violin(aes(value*100, cover, fill=group), draw_quantiles = c(0.25, 0.5, 0.75))+
+        geom_boxplot(aes(value, cover, fill=group))+
+        #  geom_violin(aes(value*100, cover, fill=group), draw_quantiles = c(0.25, 0.5, 0.75))+
         scale_fill_manual(values=c('red','blue'), drop=FALSE)+
         guides(fill = guide_legend(reverse = TRUE))+
         # scale_y_discrete(labels=rev(ynames))+
-        labs(x='Percent', y='', fill=NULL)+
+        labs(x='Proportion', y='', fill=NULL)+
         theme_minimal()+
         theme(axis.text.y = element_text(face="bold", colour = "black", size=12),
               axis.title.x = element_text(face="bold", colour = "black", size=12),
               legend.position = 'bottom')
-      
     
     })
     
     
     # output$statsTable <- render_gt(
     #   expr = df()%>%
-    #     pivot_longer(c(treecover_percent, shrubland_percent, grassland_percent, cropland_percent), 
-    #                  names_to = 'parameter', values_to = 'value') %>%
-    #     group_by(parameter) %>%
+    #     subset(measure == 'proportion')%>%
+    #     subset(cover %in% c('treecover', 'shrubland', 'grassland', 'cropland', 'builtup'))%>%
+    #     group_by(cover) %>%
     #     summarize(
     #       t_statistic = t.test(value ~ input_site, alternative=c("two.sided"))$statistic,
     #       t_test_p = t.test(value ~ input_site, alternative=c("two.sided"))$p.value)%>%
-    #     arrange(rev(parameter))%>%
-    #     mutate(parameter = ynames)%>%
+    #     arrange(rev(cover))%>%
+    #   #  mutate(parameter = ynames)%>%
     #       gt()%>%
     #       data_color(columns=t_test_p, fn=palette)
     #     )
