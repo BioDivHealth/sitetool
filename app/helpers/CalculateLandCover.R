@@ -78,6 +78,7 @@ createLCDataFrame <- function(in_df, raster, dist, progress=F){
     d_temp$site = in_df$site[i]
     d_temp$site_id = in_df$site_id[i]
     d_temp$input_site = in_df$input_site[i]
+    #str(d_temp)
     if(progress){incProgress(1/nrow(in_df), detail = paste("Site number:", i))}
     return(d_temp)
   })

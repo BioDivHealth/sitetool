@@ -336,24 +336,48 @@ server <- function(session, input, output) {
       })
     
     output$compPlot <- renderPlot({
-      
-      df()%>%
+      d = df()%>%
         subset(measure == 'proportion')%>%
-        subset(cover %in% c('treecover', 'shrubland', 'grassland', 'cropland', 'builtup'))%>%
+        subset(cover %in%c('treecover', 'shrubland', 'grassland', 'cropland', 'builtup'))%>%
         mutate(group = ifelse(input_site==TRUE, 'Input Sites', 'All Sites'),
-               group = factor(group, c('Input Sites', 'All Sites')))%>%
-        ggplot()+
-        geom_boxplot(aes(value, cover, fill=group))+
-        #  geom_violin(aes(value*100, cover, fill=group), draw_quantiles = c(0.25, 0.5, 0.75))+
-        scale_fill_manual(values=c('red','blue'), drop=FALSE)+
-        guides(fill = guide_legend(reverse = TRUE))+
-        # scale_y_discrete(labels=rev(ynames))+
-        labs(x='Proportion', y='', fill=NULL)+
-        theme_minimal()+
-        theme(axis.text.y = element_text(face="bold", colour = "black", size=12),
-              axis.title.x = element_text(face="bold", colour = "black", size=12),
-              legend.position = 'bottom')
-    
+               group = factor(group, c('Input Sites', 'All Sites')),
+               point_size = ifelse(group == "Input Sites", 2, 0.8),  # Size for each group
+               point_alpha = ifelse(group == "Input Sites", 0.8, 0.5)  # Alpha for each group
+        )
+      
+      ggplot() + 
+        ggdist::stat_halfeye(
+          data=d%>%subset(input_site==FALSE),
+          aes(x = group, y = value, fill=cover),
+          adjust = .7,
+          width = 5,
+          .width = c(0.5, 0.8),
+          justification = -.1,
+          point_colour = NA
+        ) + 
+        geom_boxplot(
+          data=d%>%subset(input_site==FALSE),
+          aes(x = group, y = value),
+          width = .5, 
+          outlier.shape = NA
+        ) +
+        geom_point(
+          data=d,
+          aes(x = group, y = value, 
+              color = group),
+          size = d$point_size,  
+          alpha = d$point_alpha,
+          position = position_jitter(
+            seed = 1, width = .3
+          )
+        ) +
+        scale_x_discrete(limits = c('Input Sites', 'All Sites'))+
+        scale_color_manual(values = c("Input Sites" = "red", "All Sites" = "black")) +
+        coord_flip() +
+        facet_wrap(cover~., scales='free', ncol=1)+
+        labs(x='Proportion', y="")
+        theme_minimal() +
+        theme(legend.position = 'none')
     })
     
     
