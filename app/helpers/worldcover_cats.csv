@@ -1,0 +1,12 @@
+value,cover
+10,treecover
+20,shrubland
+30,grassland
+40,cropland
+50,builtup
+60,bare/sparse
+70,snowice
+80,water
+90,wetland
+95,mangroves
+100,moss/lichen
