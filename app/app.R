@@ -7,31 +7,20 @@ if (!require("Require")) {
 }
 
 Require(c("shiny", "ggplot2", "bslib", "leaflet", "dplyr", "tidyr", "shinyWidgets", "ggiraph", 
-          "sf", "osmdata", "gargoyle", "gt"))
+          "sf", "osmdata", "gargoyle", "gt", "ggdist"))
 
 # Functions and modules --------------------------------------------------------
 source('helpers/CalculateLandCover.R')
 source('helpers/core_mapping.R')
+source('helpers/report_stats.R')
 
 
 # Global vars and options  ----------------------------------------------------
 
-options(shiny.maxRequestSize=50*1024^2)
+# Increase max upload size 
+options(shiny.maxRequestSize=150*1024^2)
 
-plot_vars = c('area_mn',  'treecover_percent', 'grassland_percent', 
-              'cropland_percent', 'builtup_percent', 'treecover_patch_area', 
-              'builtup_patch_area', 'cropland_patch_area')
-
-plot_labs = c('Fragmentation (mean patch area)', 'Proportion treecover', 'Proportion grasssland',
-              'Proportion cropland', 'Proportion built-up', 'Treecover mean patch area', 'Built-up mean patch area',
-              'Cropland mean patch area')
-
-palette <- scales::col_bin(palette=c('red','yellow','green'), bins=c(0,.05,0.1,1))
-
-ynames <- c("Tree Cover (%)", "Shrubland (%)", "Grassland (%)", "Cropland (%)")
-
-names(plot_vars) = plot_labs
-
+# Labels for worldcover categories
 raster_cats = read.csv('helpers/worldcover_cats.csv')
 
 # Define UI  -----------------------------------------------------------
@@ -62,7 +51,7 @@ ui <- page_sidebar(
             ),
 
             fileInput("csvfile", 
-                      label = tagList("Upload CSV of potential sites ", tags$em("(optional):")),
+                      label = tagList("Upload a CSV of potential sites ", tags$em("(optional):")),
                       accept = c(".csv")),
             actionButton("goStep1", "Go"),
             
@@ -75,114 +64,133 @@ ui <- page_sidebar(
           core_mapping_module_ui("siteMap")
     )),
     
-    layout_sidebar(
+    navset_card_tab(
       sidebar = sidebar(
         title = 'Step 2. Load and analyze landcover data.',
-        h6('Upload a GeoTIFF covering the above area.'),
-        fileInput("rastfile", "Choose a GeoTIFF File:",
+        h6('Upload a GeoTIFF covering the above area:'),
+        fileInput("rastfile", "",
                   accept = c("tif", ".tiff")),
         numericInput("radius", "Enter radius from site center to analyze landcover (meters):", value = 1000),
-        actionButton("goStep2", "Go")
+        actionButton("goStep2", "Go"),
+        downloadButton("saveFile", "Save File")
       ),
-      plotOutput("landcoverMap")
+      nav_panel(
+        title = 'Landcover Map',
+        plotOutput("landcoverMap")
+      ),
+      nav_panel(
+        title='Dataset', 
+           DT::dataTableOutput("landcoverData")  # Adjust the column width as needed
+      )
     ),
     
       navset_card_tab(
         sidebar = sidebar(
         title = 'Step 3. Filter and compare sites.',
-        fileInput("landcsv", "Upload previously analyzed landcover data (optional):",
+        fileInput("landcsv", 
+                  label = tagList("Upload previously analyzed landcover data", tags$em("(optional):")),
                   accept = c(".csv")),
         # Create a fluid row to place X and Y axis inputs side by side
-        h6('X-Axis'),
-        selectInput("x_lc", "X Landcover Category", ""),  # X-axis label choice
-        selectInput("x_m", "X Measurement", ""),  # X-axis measurement choice
-        
-        h6('Y-Axis'),
-        selectInput("y_lc", "Y Landcover Category", ""),  # X-axis label choice
-        selectInput("y_m", "Y Measurement", ""),  # X-axis measurement choice
-        # pickerInput(inputId = "x",
-        #             label = "X-Axis",
-        #             choices = plot_vars,
-        #             select = plot_vars[1]),
-        # pickerInput(inputId = "y",
-        #             label = "Y-Axis",
-        #             choices = plot_vars,
-        #             select = plot_vars[2]),
-        # sliderInput(inputId = "BuiltUpSelect", 
-        #             label = "Proportion Built-up", 
-        #             min = 0,
-        #             step = 0.05,
-        #             max = 1,
-        #             value = c(0,1)), 
-        # sliderInput(inputId = "TreeSelect", 
-        #             label = "Proportion Treecover", 
-        #             min = 0,
-        #             step = 0.05,
-        #             max = 1,
-        #             value = c(0,1)), 
-        # sliderInput(inputId = "CropSelect", 
-        #             label = "Proportion Cropland", 
-        #             min = 0,
-        #             step=0.05,
-        #             max = 1,
-        #             value = c(0,1)), 
-        # sliderInput(inputId = "GrassSelect", 
-        #             label = "Proportion Grassland", 
-        #             min = 0,
-        #             max = 1,
-        #             step=0.05,
-        #             value = c(0,1)),
-        # sliderInput(inputId = "ShrubSelect", 
-        #             label = "Proportion Shrubland", 
-        #             min = 0,
-        #             max = 1,
-        #             step=0.05,
-        #             value = c(0,1)),
-        # pickerInput(inputId = "maptype", 
-        #             label = "Map Type", 
-        #             choices = c('street', 'satellite'), 
-        #             select = "satellite"),
-        checkboxInput('log_scale','Log Scale?')
-       # actionButton("goStep3", "Go")
-      ),
-        nav_panel(title='Scatterplot',
-                  fillable=T,
-                  girafeOutput("gradientPlot")),
-        nav_panel(title='Comparison Plot and Table',
-                    #  width = 1/2,
-                     # heights_equal = "row",
-                      plotOutput('compPlot'),
-                      gt_output("statsTable")
-                  ),
-        nav_panel(title='Data', DT::DTOutput("landcoverData"), downloadButton("savefile", "Save File"))
-    )
-    
+        h6('Select a measure to compare'),
+        selectInput("measure", "Measurement", ""),  # X-axis label choice
 
+  
+        sliderInput(inputId = "BuiltUpSelect",
+                    label = "Proportion Built-up",
+                    min = 0,
+                    step = 0.05,
+                    max = 1,
+                    value = c(0,1)),
+        sliderInput(inputId = "TreeSelect",
+                    label = "Proportion Treecover",
+                    min = 0,
+                    step = 0.05,
+                    max = 1,
+                    value = c(0,1)),
+        sliderInput(inputId = "CropSelect",
+                    label = "Proportion Cropland",
+                    min = 0,
+                    step=0.05,
+                    max = 1,
+                    value = c(0,1)),
+        sliderInput(inputId = "GrassSelect",
+                    label = "Proportion Grassland",
+                    min = 0,
+                    max = 1,
+                    step=0.05,
+                    value = c(0,1)),
+        sliderInput(inputId = "ShrubSelect",
+                    label = "Proportion Shrubland",
+                    min = 0,
+                    max = 1,
+                    step=0.05,
+                    value = c(0,1))
+      ),
+        nav_panel(title='Comparison Plot',
+                  fillable=T,
+                  girafeOutput("compPlot")
+        ),
+        nav_panel(title='Stats Report',
+                      uiOutput('report', inline=TRUE)
+                  ),
+        nav_panel(title='Selected Data', 
+                  column(8, DT::dataTableOutput("outData")),  # Display the data table
+                  column(4, 
+                         downloadButton("outFile", "Save File"),  # Save button
+                         actionButton("clearButton", "Clear Selections")  # Clear button
+                  )
+        )
+      )
+    
 )
 
-# Define Server -----------------------------------------------------------
+
+# Define Server ----------------------------------------------------------------
 
 server <- function(session, input, output) {
   
-  ## Reactive Values ##
+  # Reactive values ------------------------------------------------------------
   sites <- reactiveVal(NULL)
+  input_sites <- reactiveVal(NULL)
   raster <- reactiveVal(NULL)
   bounds <- reactiveVal(NULL)
   df <- reactiveVal(NULL)
   filter_data <- reactiveVal(NULL)
   mapvals <- reactiveValues(poly = NULL)
-  
-  ## Base Map ##
+  selected_points <- reactiveVal(list())
+
+  # Base map and text ----------------------------------------------------------
   map = core_mapping_module_server("siteMap", mapvals)
-  
-  ## Output Text ##
   output$instructions <- renderUI({includeMarkdown("instructions.md")})
   
-  #### STEP 1 SERVER ####
+  # Check uploaded data --------------------------------------------------------
+  observeEvent(input$csvfile, {
+    req(input$csvfile)
+    tryCatch({
+      uploaded_data = read.csv(input$csvfile$datapath)
+      
+      # Check if the uploaded data is a dataframe
+      if (!is.data.frame(uploaded_data)) {
+        stop("wrong file")
+      }
+      
+      # Check for correct columns
+      if (any(!c('site', 'longitude', 'latitude') %in% colnames(uploaded_data))){
+        stop("incorrect columns")
+      }
+      
+      input_sites(uploaded_data)
+    },  error = function(e) {
+      showNotification("Upload file is of incorrect type. Please upload a CSV with columns labeled site, longitude, and latitude.", type = "error")
+      return(NULL)
+    })
+  })
+  
+  # Step 1: Get points from map  -----------------------------------------------
   observeEvent(input$goStep1, {
       req(mapvals$poly)
         
-        # Create bounding box from user input
+      # Create bounding box from user input
       search_area <- c(mapvals$xmin, mapvals$ymin, mapvals$xmax, mapvals$ymax)
       bounds(search_area)
       
@@ -192,7 +200,6 @@ server <- function(session, input, output) {
               mapvals$xmax, ", ", mapvals$ymax, ")")
       })
       
-    
       # Download sites within the bounding box
       if(input$selection_type == 'village'){
         sites_data <- opq(bbox = search_area) %>%
@@ -217,138 +224,137 @@ server <- function(session, input, output) {
         )%>%
         st_as_sf(coords=c('lon', 'lat'), crs=4326)  
       }
-  
-      if(!is.null(input$csvfile)){
-        candidate = read.csv(input$csvfile$datapath)
-        candidate$input_site= TRUE
-        candidate$site_id = paste0('input_',1:3)
-        candidate = st_as_sf(candidate, coords = c("longitude", "latitude"),
+      
+      if(!is.null(input_sites())){
+        id = input_sites()
+        id$input_site= TRUE
+        id$site_id = paste0('input_',1:nrow(id))
+        id = st_as_sf(id, coords = c("longitude", "latitude"),
                  crs = "epsg:4326")%>%
           select(c(site, site_id, input_site))
   
-        sites_filter = rbind(candidate, sites_filter)
+        sites_filter = rbind(id, sites_filter)
       }
-  
+      
       # store sites for later use
       sites(sites_filter)
       
+      # Output number of potential sites (including input sites)
       output$siteCount <- renderText({
           nrow(sites())
       })
       
       # update map with selected sites
       map_points(map, mapvals, sites())
-
   })
+  
+ 
+   # Check uploaded raster -----------------------------------------------------
+   observeEvent(input$rastfile, {
+     req(sites())
+     
+     # Load raster:
+     r = rast(input$rastfile$datapath)
+     
+     # Check if rasters overlap:
+     if (!(relate(ext(sites()), ext(r), relation='within'))) {
+       showNotification("The uploaded raster and the bounding box do not overlap. Please ensure they cover the same region.", type="error")
+       return(NULL) 
+     }
+     
+     # TO-DO Error handling for wrong worldcover data categories
+     # store raster for use
+     levels(r) = raster_cats
+     raster(r)
+     
+     # If all good, plot:
+     output$landcoverMap <- renderPlot({
+       if (!is.null(raster())) {
+         plot(raster())
+         plot(st_geometry(sites()), col="white", pch=8, add=T)
+       }
+     })
+   })
 
-  #### STEP 2 SERVER ####
+ 
+  # Step 2: Caculate landcover values ------------------------------------------
   observeEvent(input$goStep2, {
-    req(input$rastfile)
+    req(raster())
     req(sites())
-
-    # load landcover
-    r = rast(input$rastfile$datapath)
-    
-    #r = crop(r, ext(bounds(), xy=TRUE))
-
-    # store raster for use
-    levels(r) = raster_cats
-    raster(r)
-    
-    output$landcoverMap <- renderPlot({
-      plot(r)
-      plot(st_geometry(sites()), col="white", pch=8, add=T)
-    })
 
     withProgress(message = "Calculating landcover values", value=0, {
       out_df = createLCDataFrame(sites(), raster=raster(), dist=input$radius, progress=T)
       
+      out_df = out_df%>%left_join(sites())
+      
       df(out_df)
+    })
+    
+    output$landcoverData <- DT::renderDT({
+      df()
     })
   })
   
+  # Save File: Full dataset  ------------------------------------------
+  output$saveFile <- downloadHandler(
+    filename = function() {
+      paste0("landcover_analyzer_export.csv")
+    },
+    content = function(file){
+      write.csv(df(), file, row.names = FALSE)
+    }
+  )
+  
   observe({
-    updateSelectInput(session, "x_lc", choices=unique(df()$cover), select=unique(df()$cover[1]))
-    updateSelectInput(session, "y_lc", choices=unique(df()$cover), select=unique(df()$cover[2]))
-    updateSelectInput(session, "x_m", choices=unique(df()$measure), select='proportion')
-    updateSelectInput(session, "y_m", choices=unique(df()$measure), select='proportion')
+    updateSelectInput(session, "measure", choices=unique(df()$measure), select='proportion')
   })
 
-  #### STEP 3 SERVER ####
-  observeEvent(list(input$landcsv, input$x_lc, input$y_lc, input$x_m, input$y_m), {
+  # Step 3: Compare sites  -----------------------------------------------------
+  observeEvent(list(input$landcsv, input$measure), {
     if(!is.null(input$landcsv)){
       indata = read.csv(input$landcsv$datapath)
       df(indata)
     }
     else{req(df())}
-
-    # filter_data = df()%>%
-    #   filter(between(builtup_percent, input$BuiltUpSelect[1], input$BuiltUpSelect[2]))%>%
-    #   filter(between(treecover_percent, input$TreeSelect[1], input$TreeSelect[2]))%>%
-    #   filter(between(cropland_percent, input$CropSelect[1], input$CropSelect[2]))%>%
-    #   filter(between(grassland_percent, input$GrassSelect[1], input$GrassSelect[2]))%>%
-    #   filter(between(shrubland_percent, input$ShrubSelect[1], input$ShrubSelect[2]))
-    # 
-    # filter_data(filter_data)
     
-    output$landcoverData <- DT::renderDT({
-      df()
+    observe({
+      filter_data = df()%>%
+        subset(measure == input$measure)%>%
+        filter(
+          (cover == "builtup" & between(value, input$BuiltUpSelect[1], input$BuiltUpSelect[2])) |
+            (cover == "treecover" & between(value, input$TreeSelect[1], input$TreeSelect[2])) |
+            (cover == "cropland" & between(value, input$CropSelect[1], input$CropSelect[2])) |
+            (cover == "grassland" & between(value, input$GrassSelect[1], input$GrassSelect[2])) |
+            (cover == "shrubland" & between(value, input$ShrubSelect[1], input$ShrubSelect[2]))
+        )
+      
+      filter_data(filter_data)
+      
     })
     
-    filter_data = df()%>%
-      ungroup()%>%
-      filter((cover == input$x_lc & measure == input$x_m) |
-             (cover == input$y_lc & measure == input$y_m)) %>%
-      mutate(cover_measure = paste0(cover, measure)) %>%  # Create a new column
-      select(-c(measure, cover))%>%
-      pivot_wider(names_from = cover_measure, values_from = value)
-
-    output$gradientPlot<- renderGirafe({
-      p1 <- filter_data%>%
-        ggplot(aes(x =!!sym(paste0(input$x_lc, input$x_m)), 
-                   y = !!sym(paste0(input$y_lc, input$y_m))))+
-        geom_point_interactive(aes(tooltip = site, data_id=site_id, color=input_site))+
-        scale_color_manual(values=c('black','red'),
-                           labels = c('Additional Sites', 'Input Sites'))+
-        labs(x=paste(input$x_lc, input$x_m), 
-             y=paste(input$y_lc, input$y_m), 
-             color=NULL)+
-        theme_classic()
-
-      p2 <- p1+
-        coord_trans(x = 'log10', y = 'log10')+
-        theme_classic()
-
-      if(input$log_scale){
-        girafe(
-          ggobj = p2,
-          options = list(
-            opts_hover(css = "fill:yellow;cursor:pointer;"),
-            opts_selection(type = "single")))
-      }
-      else{
-        girafe(
-          ggobj = p1,
-          options = list(
-            opts_hover(css = "fill:yellow;cursor:pointer;"),
-            opts_selection(type = "single")))
-      }
-      })
+    # Generate the proportion report
+    report_results <- generate_wilcox_report(df())
     
-    output$compPlot <- renderPlot({
-      d = df()%>%
-        subset(measure == 'proportion')%>%
+    # Render the report as HTML
+    output$report <- renderUI({
+      HTML(paste(report_results, collapse = "<br><br>"))  # Combine results with line breaks
+    })
+    
+
+    output$compPlot<- renderGirafe({
+      d = filter_data()%>%
+        left_join(raster_cats%>%select(-c(value)))%>% # add in colors
         subset(cover %in%c('treecover', 'shrubland', 'grassland', 'cropland', 'builtup'))%>%
         mutate(group = ifelse(input_site==TRUE, 'Input Sites', 'All Sites'),
                group = factor(group, c('Input Sites', 'All Sites')),
-               point_size = ifelse(group == "Input Sites", 2, 0.8),  # Size for each group
-               point_alpha = ifelse(group == "Input Sites", 0.8, 0.5)  # Alpha for each group
+               point_size = ifelse(group == "Input Sites", 3, 1),  # Size for each group
+               point_alpha = ifelse(group == "Input Sites", 0.8, 0.3)  # Alpha for each group
         )
       
-      ggplot() + 
+      p = ggplot() + 
         ggdist::stat_halfeye(
           data=d%>%subset(input_site==FALSE),
-          aes(x = group, y = value, fill=cover),
+          aes(x = group, y = value, fill=color),
           adjust = .7,
           width = 5,
           .width = c(0.5, 0.8),
@@ -358,51 +364,76 @@ server <- function(session, input, output) {
         geom_boxplot(
           data=d%>%subset(input_site==FALSE),
           aes(x = group, y = value),
-          width = .5, 
+          width = 0.7, 
           outlier.shape = NA
         ) +
-        geom_point(
+        geom_point_interactive(
           data=d,
           aes(x = group, y = value, 
-              color = group),
+              color = group,
+              tooltip = site, data_id=site_id),
           size = d$point_size,  
           alpha = d$point_alpha,
           position = position_jitter(
             seed = 1, width = .3
           )
         ) +
+        scale_fill_identity()+
         scale_x_discrete(limits = c('Input Sites', 'All Sites'))+
         scale_color_manual(values = c("Input Sites" = "red", "All Sites" = "black")) +
         coord_flip() +
         facet_wrap(cover~., scales='free', ncol=1)+
-        labs(x='Proportion', y="")
+        labs(x='', y=stringr::str_to_title(input$measure))+
         theme_minimal() +
-        theme(legend.position = 'none')
-    })
-    
-    
-    # output$statsTable <- render_gt(
-    #   expr = df()%>%
-    #     subset(measure == 'proportion')%>%
-    #     subset(cover %in% c('treecover', 'shrubland', 'grassland', 'cropland', 'builtup'))%>%
-    #     group_by(cover) %>%
-    #     summarize(
-    #       t_statistic = t.test(value ~ input_site, alternative=c("two.sided"))$statistic,
-    #       t_test_p = t.test(value ~ input_site, alternative=c("two.sided"))$p.value)%>%
-    #     arrange(rev(cover))%>%
-    #   #  mutate(parameter = ynames)%>%
-    #       gt()%>%
-    #       data_color(columns=t_test_p, fn=palette)
-    #     )
+        theme(legend.position = 'none',
+              strip.text = element_text(face="bold"))
+        
+      # Interactive portion
+        girafe(
+          ggobj = p,
+          width_svg = 6,
+          height_svg = 10,
+          options = list(
+            opts_hover(css = "fill-opacity:1;fill:yellow;cursor:pointer;"),
+            opts_selection(type = "single")))
+      })
     
     })
   
-  output$savefile <- downloadHandler(
+  # Observe selected points from the plot
+  observeEvent(input$compPlot_selected, {
+    selected_sites <- input$compPlot_selected
+    
+    current_selection <- selected_points()
+    selected_points(append(current_selection, list(selected_sites)))
+  })
+  
+  # Display selected points in a table
+  output$outData <- DT::renderDT({
+    selected_df <- df()%>%subset(site_id %in% unlist(selected_points()))
+    DT::datatable(selected_df)
+  })
+  
+  # Clear the selected points
+  observeEvent(input$clearButton, {
+    selected_points(c())  # Reset to an empty vector
+
+  })
+  
+
+  # Render the stats report
+  output$report <- renderUI({
+      HTML(report_results)
+  })
+
+
+
+  output$outFile <- downloadHandler(
     filename = function() {
-      paste0("landcover_analyzer_export.csv")
+      paste0("selected_sites.csv")
     },
     content = function(file){
-      write.csv(df(), file, row.names = FALSE)
+      write.csv(df()%>%subset(site_id %in% unlist(selected_points())), file, row.names = FALSE)
     }
   )
 }

@@ -70,7 +70,7 @@ createLCDataFrame <- function(in_df, raster, dist, progress=F){
     
     # When only one landcover type
     if(nrow(class_area) == 0){
-      class_area = data.frame(layer = NA, mn_patch_area = NA, sd_patch_area = NA)
+      class_area = data.frame(layer = NA, mean_patch_area = NA)
     }
     
     # Combine into one dataframe
@@ -82,7 +82,7 @@ createLCDataFrame <- function(in_df, raster, dist, progress=F){
     if(progress){incProgress(1/nrow(in_df), detail = paste("Site number:", i))}
     return(d_temp)
   })
-  
+
   df = do.call(rbind, df_list)
   
   df = df%>%
