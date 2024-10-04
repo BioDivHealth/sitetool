@@ -127,12 +127,14 @@ ui <- page_sidebar(
                     value = c(0,1))
       ),
         nav_panel(title='Comparison Plot',
-                  fillable=T,
-                  girafeOutput("compPlot")
+                  tags$style(type = "text/css", ".container-fluid {padding-left:0px};  padding-right:15px ;margin-right:auto"),
+                  uiOutput("compPlot", inline=TRUE),
+                  class = 'leftAlign'
         ),
-        nav_panel(title='Stats Report',
-                      uiOutput('report', inline=TRUE)
-                  ),
+        # nav_panel(title='Stats Report',
+        #           uiOutput('report', inline=TRUE),
+        #           class = 'leftAlign'
+        #           ),
         nav_panel(title='Selected Data', 
                   column(8, DT::dataTableOutput("outData")),  # Display the data table
                   column(4, 
@@ -140,7 +142,7 @@ ui <- page_sidebar(
                          actionButton("clearButton", "Clear Selections")  # Clear button
                   )
         )
-      )
+      ),
     
 )
 
@@ -154,8 +156,7 @@ server <- function(session, input, output) {
   input_sites <- reactiveVal(NULL)
   raster <- reactiveVal(NULL)
   bounds <- reactiveVal(NULL)
-  df <- reactiveVal(NULL)
-  filter_data <- reactiveVal(NULL)
+  df <- reactiveValues(long=NULL, wide=NULL, filter=NULL)
   mapvals <- reactiveValues(poly = NULL)
   selected_points <- reactiveVal(list())
 
@@ -285,13 +286,27 @@ server <- function(session, input, output) {
     withProgress(message = "Calculating landcover values", value=0, {
       out_df = createLCDataFrame(sites(), raster=raster(), dist=input$radius, progress=T)
       
-      out_df = out_df%>%left_join(sites())
+      sites_xy = sites()%>%
+        mutate(longitude = sf::st_coordinates(.)[,1],
+               latitude = sf::st_coordinates(.)[,2])%>%
+        st_drop_geometry()
       
-      df(out_df)
+      # Add x and y of sites to dataframe
+      out_df = out_df%>%
+        left_join(sites_xy)
+      
+      # Save as long format
+      df$long = out_df
+      
+      # Convert to wide format for export
+      out_df = out_df%>%
+        pivot_wider(names_from=c(cover, measure), values_from=value)
+      
+      df$wide = out_df
     })
     
     output$landcoverData <- DT::renderDT({
-      df()
+      df$wide
     })
   })
   
@@ -301,116 +316,106 @@ server <- function(session, input, output) {
       paste0("landcover_analyzer_export.csv")
     },
     content = function(file){
-      write.csv(df(), file, row.names = FALSE)
+      write.csv(df$wide, file, row.names = FALSE)
     }
   )
   
   observe({
-    updateSelectInput(session, "measure", choices=unique(df()$measure), select='proportion')
+    updateSelectInput(session, "measure", choices=unique(df$long$measure), select='proportion')
   })
+  
+  observe({
+    req(df$long)
+    
+    df$filter = df$long%>%
+      subset(measure == input$measure)%>%
+      filter(
+        (cover == "builtup" & between(value, input$BuiltUpSelect[1], input$BuiltUpSelect[2])) |
+          (cover == "treecover" & between(value, input$TreeSelect[1], input$TreeSelect[2])) |
+          (cover == "cropland" & between(value, input$CropSelect[1], input$CropSelect[2])) |
+          (cover == "grassland" & between(value, input$GrassSelect[1], input$GrassSelect[2])) |
+          (cover == "shrubland" & between(value, input$ShrubSelect[1], input$ShrubSelect[2]))
+      )
+  })
+  
 
   # Step 3: Compare sites  -----------------------------------------------------
   observeEvent(list(input$landcsv, input$measure), {
+    
+    # Check for uploaded CSV or use output from step 2
     if(!is.null(input$landcsv)){
+      # TODO ERROR HANDLING
       indata = read.csv(input$landcsv$datapath)
-      df(indata)
+      df$wide = indata
+      
+      df$long = indata%>%
+        pivot_longer(cols=-c(site, site_id, input_site, latitude, longitude), 
+                                      names_to='temp', 
+                                      values_to='value')%>%
+        separate(temp, into=c('cover', 'measure'), sep='_', extra='merge')
     }
-    else{req(df())}
+    else{req(df$long)}
     
-    observe({
-      filter_data = df()%>%
-        subset(measure == input$measure)%>%
-        filter(
-          (cover == "builtup" & between(value, input$BuiltUpSelect[1], input$BuiltUpSelect[2])) |
-            (cover == "treecover" & between(value, input$TreeSelect[1], input$TreeSelect[2])) |
-            (cover == "cropland" & between(value, input$CropSelect[1], input$CropSelect[2])) |
-            (cover == "grassland" & between(value, input$GrassSelect[1], input$GrassSelect[2])) |
-            (cover == "shrubland" & between(value, input$ShrubSelect[1], input$ShrubSelect[2]))
-        )
+    # Render the plots and HTML
+    output$compPlot <- renderUI({
       
-      filter_data(filter_data)
-      
-    })
-    
-    # Generate the proportion report
-    report_results <- generate_wilcox_report(df())
-    
-    # Render the report as HTML
-    output$report <- renderUI({
-      HTML(paste(report_results, collapse = "<br><br>"))  # Combine results with line breaks
-    })
-    
-
-    output$compPlot<- renderGirafe({
-      d = filter_data()%>%
+      # Organize dataframe
+      d = df$filter%>%
         left_join(raster_cats%>%select(-c(value)))%>% # add in colors
-        subset(cover %in%c('treecover', 'shrubland', 'grassland', 'cropland', 'builtup'))%>%
+      #  subset(cover %in%c('treecover', 'shrubland', 'grassland', 'cropland', 'builtup'))%>%
         mutate(group = ifelse(input_site==TRUE, 'Input Sites', 'All Sites'),
                group = factor(group, c('Input Sites', 'All Sites')),
                point_size = ifelse(group == "Input Sites", 3, 1),  # Size for each group
                point_alpha = ifelse(group == "Input Sites", 0.8, 0.3)  # Alpha for each group
         )
       
-      p = ggplot() + 
-        ggdist::stat_halfeye(
-          data=d%>%subset(input_site==FALSE),
-          aes(x = group, y = value, fill=color),
-          adjust = .7,
-          width = 5,
-          .width = c(0.5, 0.8),
-          justification = -.1,
-          point_colour = NA
-        ) + 
-        geom_boxplot(
-          data=d%>%subset(input_site==FALSE),
-          aes(x = group, y = value),
-          width = 0.7, 
-          outlier.shape = NA
-        ) +
-        geom_point_interactive(
-          data=d,
-          aes(x = group, y = value, 
-              color = group,
-              tooltip = site, data_id=site_id),
-          size = d$point_size,  
-          alpha = d$point_alpha,
-          position = position_jitter(
-            seed = 1, width = .3
-          )
-        ) +
-        scale_fill_identity()+
-        scale_x_discrete(limits = c('Input Sites', 'All Sites'))+
-        scale_color_manual(values = c("Input Sites" = "red", "All Sites" = "black")) +
-        coord_flip() +
-        facet_wrap(cover~., scales='free', ncol=1)+
-        labs(x='', y=stringr::str_to_title(input$measure))+
-        theme_minimal() +
-        theme(legend.position = 'none',
-              strip.text = element_text(face="bold"))
+      
+      # Get the unique cover levels
+      cats <- unique(d$cover)
+      
+      # Create a list of plots and corresponding HTML
+      plot_list <- purrr::map(cats, function(cat) {
         
-      # Interactive portion
-        girafe(
-          ggobj = p,
-          width_svg = 6,
-          height_svg = 10,
-          options = list(
-            opts_hover(css = "fill-opacity:1;fill:yellow;cursor:pointer;"),
-            opts_selection(type = "single")))
+        # Filter data for the current cover level
+        cover_data <- d %>% filter(cover == cat)
+        
+        # Generate the interactive plot
+        plot <- generate_plot(cover_data, cat, input$measure)
+        
+        # Generate the corresponding HTML text
+        html_text <- generate_text(cover_data, cat)
+        
+        # Combine the plot and HTML into one display
+        tagList(
+             renderGirafe({plot}),
+              HTML(html_text),
+              hr() # Horizontal line to separate each plot-text block
+        )
       })
-    
+      
+      # Return the list of plots and text blocks
+      do.call(tagList, plot_list)
     })
+  
+  })
   
   # Observe selected points from the plot
   observeEvent(input$compPlot_selected, {
+    print(input$compPlot_selected)
     selected_sites <- input$compPlot_selected
-    
+
     current_selection <- selected_points()
     selected_points(append(current_selection, list(selected_sites)))
   })
+
   
-  # Display selected points in a table
+
+  
+  # display selected points in a table
   output$outData <- DT::renderDT({
-    selected_df <- df()%>%subset(site_id %in% unlist(selected_points()))
+    selected_df <- df$wide%>%
+      subset(site_id %in% unlist(selected_points()))
+    
     DT::datatable(selected_df)
   })
   
@@ -419,21 +424,16 @@ server <- function(session, input, output) {
     selected_points(c())  # Reset to an empty vector
 
   })
-  
-
-  # Render the stats report
-  output$report <- renderUI({
-      HTML(report_results)
-  })
-
-
 
   output$outFile <- downloadHandler(
     filename = function() {
       paste0("selected_sites.csv")
     },
     content = function(file){
-      write.csv(df()%>%subset(site_id %in% unlist(selected_points())), file, row.names = FALSE)
+      selected_df <- df$wide%>%
+        subset(site_id %in% unlist(selected_points()))
+      
+      write.csv(selected_df, file, row.names = FALSE)
     }
   )
 }
