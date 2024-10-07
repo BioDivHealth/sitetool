@@ -35,10 +35,10 @@ generate_text <- function(data, cat) {
       " and the range for the rest of the dataset is <span style='color:blue'>", 
       paste(rest_range, collapse = '-'), "</span>.",
       " The input sites have a mean (+/- SD) of <span style='color:green'>", 
-      input_mean, "</span> +/- <span style='color:green'>", 
+      input_mean, "</span> +/- <span style='color:blue'>", 
       input_sd, "</span>",
       " while the value for the rest of the sites is <span style='color:green'>", 
-      rest_mean, "</span> +/- <span style='color:green'>", 
+      rest_mean, "</span> +/- <span style='color:blue'>", 
       rest_sd, "</span>."
     )
 
@@ -80,7 +80,7 @@ generate_plot <- function(data, cat, measure) {
  #   scale_color_manual(values = c("highlight" = "yellow", "Input Sites" = "red", "All Sites" = "black")) +
     coord_flip() +
     labs(x = '', y = '', 
-         title = paste(stringr::str_to_title(cat), stringr::str_to_title(measure))) +
+         title = paste(stringr::str_to_title(cat), measure)) +
     theme_minimal() +
     theme(legend.position = 'none', 
           plot.title = element_text(face = "bold", hjust=0.5),

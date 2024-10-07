@@ -18,10 +18,10 @@ source('helpers/report_stats.R')
 # Global vars and options  ----------------------------------------------------
 
 # Increase max upload size 
-options(shiny.maxRequestSize=150*1024^2)
+options(shiny.maxRequestSize=2000*1024^2)
 
 # Labels for worldcover categories
-raster_cats = read.csv('helpers/worldcover_cats.csv')
+raster_cats = read.csv('data/categories.csv')
 
 # Define UI  -----------------------------------------------------------
 
@@ -68,6 +68,7 @@ ui <- page_sidebar(
       sidebar = sidebar(
         title = 'Step 2. Load and analyze landcover data.',
         h6('Upload a GeoTIFF covering the above area:'),
+        selectInput('product', 'Landcover Product:', choices = c('World Cover', 'Dynamic Land Cover', 'NDVI')),
         fileInput("rastfile", "",
                   accept = c("tif", ".tiff")),
         numericInput("radius", "Enter radius from site center to analyze landcover (meters):", value = 1000),
@@ -93,39 +94,39 @@ ui <- page_sidebar(
         # Create a fluid row to place X and Y axis inputs side by side
         h6('Select a measure to compare'),
         selectInput("measure", "Measurement", ""),  # X-axis label choice
-
-  
-        sliderInput(inputId = "BuiltUpSelect",
-                    label = "Proportion Built-up",
-                    min = 0,
-                    step = 0.05,
-                    max = 1,
-                    value = c(0,1)),
-        sliderInput(inputId = "TreeSelect",
-                    label = "Proportion Treecover",
-                    min = 0,
-                    step = 0.05,
-                    max = 1,
-                    value = c(0,1)),
-        sliderInput(inputId = "CropSelect",
-                    label = "Proportion Cropland",
-                    min = 0,
-                    step=0.05,
-                    max = 1,
-                    value = c(0,1)),
-        sliderInput(inputId = "GrassSelect",
-                    label = "Proportion Grassland",
-                    min = 0,
-                    max = 1,
-                    step=0.05,
-                    value = c(0,1)),
-        sliderInput(inputId = "ShrubSelect",
-                    label = "Proportion Shrubland",
-                    min = 0,
-                    max = 1,
-                    step=0.05,
-                    value = c(0,1))
-      ),
+# 
+#   
+#         sliderInput(inputId = "BuiltUpSelect",
+#                     label = "Proportion Built-up",
+#                     min = 0,
+#                     step = 0.05,
+#                     max = 1,
+#                     value = c(0,1)),
+#         sliderInput(inputId = "TreeSelect",
+#                     label = "Proportion Treecover",
+#                     min = 0,
+#                     step = 0.05,
+#                     max = 1,
+#                     value = c(0,1)),
+#         sliderInput(inputId = "CropSelect",
+#                     label = "Proportion Cropland",
+#                     min = 0,
+#                     step=0.05,
+#                     max = 1,
+#                     value = c(0,1)),
+#         sliderInput(inputId = "GrassSelect",
+#                     label = "Proportion Grassland",
+#                     min = 0,
+#                     max = 1,
+#                     step=0.05,
+#                     value = c(0,1)),
+#         sliderInput(inputId = "ShrubSelect",
+#                     label = "Proportion Shrubland",
+#                     min = 0,
+#                     max = 1,
+#                     step=0.05,
+#                     value = c(0,1))
+       ),
         nav_panel(title='Comparison Plot',
                   tags$style(type = "text/css", ".container-fluid {padding-left:0px};  padding-right:15px ;margin-right:auto"),
                   uiOutput("compPlot", inline=TRUE),
@@ -257,7 +258,7 @@ server <- function(session, input, output) {
      # Load raster:
      r = rast(input$rastfile$datapath)
      
-     # Check if rasters overlap:
+     # Check that sites are within uploaded raster:
      if (!(relate(ext(sites()), ext(r), relation='within'))) {
        showNotification("The uploaded raster and the bounding box do not overlap. Please ensure they cover the same region.", type="error")
        return(NULL) 
@@ -265,14 +266,17 @@ server <- function(session, input, output) {
      
      # TO-DO Error handling for wrong worldcover data categories
      # store raster for use
-     levels(r) = raster_cats
+     if(input$product != 'NDVI'){
+       levels(r) = raster_cats%>%subset(product == input$product)
+     }
+     
      raster(r)
      
      # If all good, plot:
      output$landcoverMap <- renderPlot({
        if (!is.null(raster())) {
-         plot(raster())
-         plot(st_geometry(sites()), col="white", pch=8, add=T)
+         plot(crop(r, ext(sites())))
+         plot(st_geometry(sites()), col="magenta", pch=8, cex=3, add=T)
        }
      })
    })
@@ -284,12 +288,19 @@ server <- function(session, input, output) {
     req(sites())
 
     withProgress(message = "Calculating landcover values", value=0, {
-      out_df = createLCDataFrame(sites(), raster=raster(), dist=input$radius, progress=T)
+      
+      if(input$product == 'NDVI'){
+        out_df = createNDVIDataFrame(sites(), raster=raster(), type=input$product, dist=input$radius, progress=T)
+      }
+      else{
+        out_df = createLCDataFrame(sites(), raster=raster(), dist=input$radius, progress=T)
+      }
       
       sites_xy = sites()%>%
         mutate(longitude = sf::st_coordinates(.)[,1],
                latitude = sf::st_coordinates(.)[,2])%>%
         st_drop_geometry()
+      
       
       # Add x and y of sites to dataframe
       out_df = out_df%>%
@@ -304,6 +315,8 @@ server <- function(session, input, output) {
       
       df$wide = out_df
     })
+    
+  
     
     output$landcoverData <- DT::renderDT({
       df$wide
@@ -328,14 +341,14 @@ server <- function(session, input, output) {
     req(df$long)
     
     df$filter = df$long%>%
-      subset(measure == input$measure)%>%
-      filter(
-        (cover == "builtup" & between(value, input$BuiltUpSelect[1], input$BuiltUpSelect[2])) |
-          (cover == "treecover" & between(value, input$TreeSelect[1], input$TreeSelect[2])) |
-          (cover == "cropland" & between(value, input$CropSelect[1], input$CropSelect[2])) |
-          (cover == "grassland" & between(value, input$GrassSelect[1], input$GrassSelect[2])) |
-          (cover == "shrubland" & between(value, input$ShrubSelect[1], input$ShrubSelect[2]))
-      )
+       subset(measure == input$measure)#%>%
+      # filter(
+      #   (cover == "builtup" & between(value, input$BuiltUpSelect[1], input$BuiltUpSelect[2])) |
+      #     (cover == "treecover" & between(value, input$TreeSelect[1], input$TreeSelect[2])) |
+      #     (cover == "cropland" & between(value, input$CropSelect[1], input$CropSelect[2])) |
+      #     (cover == "grassland" & between(value, input$GrassSelect[1], input$GrassSelect[2])) |
+      #     (cover == "shrubland" & between(value, input$ShrubSelect[1], input$ShrubSelect[2]))
+      # )
   })
   
 
@@ -360,16 +373,15 @@ server <- function(session, input, output) {
     output$compPlot <- renderUI({
       
       # Organize dataframe
-      d = df$filter%>%
-        left_join(raster_cats%>%select(-c(value)))%>% # add in colors
-      #  subset(cover %in%c('treecover', 'shrubland', 'grassland', 'cropland', 'builtup'))%>%
+      
+      d = df$filter%>% # add in colors
+        left_join(raster_cats%>%subset(product == input$product)%>%select(-c(subcover, value))%>%group_by(cover)%>%slice(1))%>%
         mutate(group = ifelse(input_site==TRUE, 'Input Sites', 'All Sites'),
                group = factor(group, c('Input Sites', 'All Sites')),
                point_size = ifelse(group == "Input Sites", 3, 1),  # Size for each group
                point_alpha = ifelse(group == "Input Sites", 0.8, 0.3)  # Alpha for each group
         )
-      
-      
+
       # Get the unique cover levels
       cats <- unique(d$cover)
       

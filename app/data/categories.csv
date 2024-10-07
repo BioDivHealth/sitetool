@@ -33,3 +33,7 @@ value,cover,subcover,color,product
 125,forest,"Open forest, mixed",#929900,Dynamic Land Cover
 126,forest,"Open forest, unknown",#648C00,Dynamic Land Cover
 200,open sea,open sea,#000080,Dynamic Land Cover
+NA,mean,NA,#63C600,NDVI
+NA,sd,NA,#E8C32E,NDVI
+NA,min,NA,#EEB99F,NDVI
+NA,max,NA,#00A600,NDVI

@@ -2,7 +2,6 @@
 
 ### Required Packages ### 
 library(terra)
-#library(landscapemetrics)
 library(svMisc)
 
 # Helper Fucntions ------------------------------------------------------------
@@ -78,23 +77,64 @@ createLCDataFrame <- function(in_df, raster, dist, progress=F){
     d_temp$site = in_df$site[i]
     d_temp$site_id = in_df$site_id[i]
     d_temp$input_site = in_df$input_site[i]
-    #str(d_temp)
     if(progress){incProgress(1/nrow(in_df), detail = paste("Site number:", i))}
     return(d_temp)
   })
 
   df = do.call(rbind, df_list)
+
   
   df = df%>%
+    subset(!is.na(layer))%>%
+    select(-c(layer))%>%
     group_by(site_id)%>%
     mutate(total_area = sum(area))%>%
     group_by(site_id, cover)%>%
-    mutate(proportion = area/total_area)%>%
-    pivot_longer(c(area, mean_patch_area, proportion), names_to = 'measure', values_to = 'value')%>%
-    select(-c(layer, total_area))
+    summarise(
+           mean_patch_area =  mean(mean_patch_area),
+           cover_total_area = sum(area),
+           proportion = sum(area)/total_area)%>%
+    ungroup()%>%
+    unique()%>%
+    pivot_longer(c(cover_total_area, mean_patch_area, proportion), names_to = 'measure', values_to = 'value')
 
   return(df)
 }
+
+createNDVIDataFrame <- function(in_df, raster, type, dist, progress=F){
+  df_list = lapply(seq(nrow(in_df)), function(i){
+
+    area = getCroppedArea(in_df$geometry[i], dist)
+    raster_crop = crop(raster, area)
+    
+    d_temp = global(raster_crop, c('mean', 'sd', 'range'), na.rm=T)
+    d_temp$site = in_df$site[i]
+    d_temp$site_id = in_df$site_id[i]
+    d_temp$input_site = in_df$input_site[i]
+    return(d_temp)
+    if(progress){incProgress(1/nrow(in_df), detail = paste("Site number:", i))}
+  })
+
+  df = do.call(rbind, df_list)
+  df$measure = type
+  df = df%>%
+    pivot_longer(c(mean, sd, min, max), names_to = 'cover', values_to = 'value')
+  
+  return(df)
+}
+# 
+# df = read.csv('test2.csv')
+# df = df[1:3,]
+# df = df%>%st_as_sf(coords = c("longitude", "latitude"),
+#                    crs = "epsg:4326")
+# createNDVIDataFrame(df, r, 'NDVI', 1000)
+# 
+# df = df%>%subset(site %in% c('lans', 'hale'))%>%mutate(site_id = 1:2)
+# area = getCroppedArea(df$geometry[2], 1000)
+# raster_crop = crop(r, area)
+# 
+# 
+# 
 
 
 createBuildDF <- function(in_df, buildings, dist, progress=F){
