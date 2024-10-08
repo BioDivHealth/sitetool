@@ -1,39 +1,48 @@
 value,cover,subcover,color,product
-10,treecover,treecover,#006400,World Cover
-20,shrubland,shrubland,#ffbb22,World Cover
-30,grassland,grassland,#ffff4c,World Cover
-40,cropland,cropland,#f096ff,World Cover
-50,builtup,builtup,#fa0000,World Cover
-60,bare/sparse,bare/sparse,#b4b4b4,World Cover
-70,snowice,snowice,#f0f0f0,World Cover
-80,water,water,#0064c8,World Cover
-90,wetland,wetland,#0096a0,World Cover
-95,mangroves,mangroves,#00cf75,World Cover
-100,moss/lichen,moss/lichen,#fae6a0,World Cover
-0,no input data,no input data,#282828,Dynamic Land Cover
-20,shrubs,shrubs,#FFBB22,Dynamic Land Cover
-30,herbaceous vegetation,herbaceous vegetation,#FFFF4C,Dynamic Land Cover
-40,cropland,cropland,#F096FF,Dynamic Land Cover
-50,builtup,builtup,#FA0000,Dynamic Land Cover
-60,bare/sparse,bare/sparse,#B4B4B4,Dynamic Land Cover
-70,snowice,snowice,#F0F0F0,Dynamic Land Cover
-80,permanent water bodies,permanent water bodies,#0032C8,Dynamic Land Cover
-90,herbaceous wetland,herbaceous wetland,#0096A0,Dynamic Land Cover
-100,moss/lichen,moss/lichen,#FAE6A0,Dynamic Land Cover
-111,forest,"Closed forest, evergreen needle leaf",#58481F,Dynamic Land Cover
-112,forest,"Closed forest, evergreen, broad leaf",#009900,Dynamic Land Cover
-113,forest,"Closed forest, deciduous needle leaf",#70663E,Dynamic Land Cover
-114,forest,"Closed forest, mixed",#00CC00,Dynamic Land Cover
-115,forest,"Closed forest, mixed",#4E751F,Dynamic Land Cover
-116,forest,"Closed forest, unknown",#007800,Dynamic Land Cover
-121,forest,"Open forest, evergreen needle leaf",#666000,Dynamic Land Cover
-122,forest,"Open forest, evergreen broad leaf",#8DB400,Dynamic Land Cover
-123,forest,"Open forest, deciduous needle leaf",#8D7400,Dynamic Land Cover
-124,forest,"Open forest, deciduous broad leaf",#A0DC00,Dynamic Land Cover
-125,forest,"Open forest, mixed",#929900,Dynamic Land Cover
-126,forest,"Open forest, unknown",#648C00,Dynamic Land Cover
-200,open sea,open sea,#000080,Dynamic Land Cover
+10,treecover,treecover,#006400,ESA WorldCover
+20,shrubland,shrubland,#ffbb22,ESA WorldCover
+30,grassland,grassland,#ffff4c,ESA WorldCover
+40,cropland,cropland,#f096ff,ESA WorldCover
+50,builtup,builtup,#fa0000,ESA WorldCover
+60,bare/sparse,bare/sparse,#b4b4b4,ESA WorldCover
+70,snowice,snowice,#f0f0f0,ESA WorldCover
+80,water,water,#0064c8,ESA WorldCover
+90,wetland,wetland,#0096a0,ESA WorldCover
+95,mangroves,mangroves,#00cf75,ESA WorldCover
+100,moss/lichen,moss/lichen,#fae6a0,ESA WorldCover
+0,no input data,no input data,#282828,Copernicus Global Land Cover
+20,shrubs,shrubs,#FFBB22,Copernicus Global Land Cover
+30,herbaceous vegetation,herbaceous vegetation,#FFFF4C,Copernicus Global Land Cover
+40,cropland,cropland,#F096FF,Copernicus Global Land Cover
+50,builtup,builtup,#FA0000,Copernicus Global Land Cover
+60,bare/sparse,bare/sparse,#B4B4B4,Copernicus Global Land Cover
+70,snowice,snowice,#F0F0F0,Copernicus Global Land Cover
+80,permanent water bodies,permanent water bodies,#0032C8,Copernicus Global Land Cover
+90,herbaceous wetland,herbaceous wetland,#0096A0,Copernicus Global Land Cover
+100,moss/lichen,moss/lichen,#FAE6A0,Copernicus Global Land Cover
+111,forest,"Closed forest, evergreen needle leaf",#58481F,Copernicus Global Land Cover
+112,forest,"Closed forest, evergreen, broad leaf",#009900,Copernicus Global Land Cover
+113,forest,"Closed forest, deciduous needle leaf",#70663E,Copernicus Global Land Cover
+114,forest,"Closed forest, mixed",#00CC00,Copernicus Global Land Cover
+115,forest,"Closed forest, mixed",#4E751F,Copernicus Global Land Cover
+116,forest,"Closed forest, unknown",#007800,Copernicus Global Land Cover
+121,forest,"Open forest, evergreen needle leaf",#666000,Copernicus Global Land Cover
+122,forest,"Open forest, evergreen broad leaf",#8DB400,Copernicus Global Land Cover
+123,forest,"Open forest, deciduous needle leaf",#8D7400,Copernicus Global Land Cover
+124,forest,"Open forest, deciduous broad leaf",#A0DC00,Copernicus Global Land Cover
+125,forest,"Open forest, mixed",#929900,Copernicus Global Land Cover
+126,forest,"Open forest, unknown",#648C00,Copernicus Global Land Cover
+200,open sea,open sea,#000080,Copernicus Global Land Cover
 NA,mean,NA,#63C600,NDVI
 NA,sd,NA,#E8C32E,NDVI
 NA,min,NA,#EEB99F,NDVI
 NA,max,NA,#00A600,NDVI
+0,water,water,#419bdf,Dynamic World
+1,trees,trees,#397d49,Dynamic World
+2,grass,grass,#88b053,Dynamic World
+3,flooded vegetation,flooded vegetation,#7a87c6,Dynamic World
+4,crops,crops,#e49635,Dynamic World
+5,shrub and scrub,shrub and scrub,#dfc35a,Dynamic World
+6,built,built,#c4281b,Dynamic World
+7,bare,bare,#a59b8f,Dynamic World
+8,snow and ice,snow and ice,#b39fe1,Dynamic World

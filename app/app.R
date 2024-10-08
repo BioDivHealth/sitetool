@@ -6,7 +6,7 @@ if (!require("Require")) {
   require("Require")
 }
 
-Require(c("shiny", "ggplot2", "bslib", "leaflet", "dplyr", "tidyr", "shinyWidgets", "ggiraph", 
+Require(c("shiny", "shinyWidgets", "ggplot2", "bslib", "leaflet", "dplyr", "tidyr", "terra", "ggiraph", 
           "sf", "osmdata", "gargoyle", "gt", "ggdist"))
 
 # Functions and modules --------------------------------------------------------
@@ -20,131 +20,103 @@ source('helpers/report_stats.R')
 # Increase max upload size 
 options(shiny.maxRequestSize=2000*1024^2)
 
-# Labels for worldcover categories
+# Labels for land cover categories
 raster_cats = read.csv('data/categories.csv')
 
 # Define UI  -----------------------------------------------------------
 
-ui <- page_sidebar(
+ui <- page_navbar(
   
-    title =  "Site Selection Landcover Analyzer", 
-    class = 'bslib-page-dashboard',
+    title =  span("Site Selection Landcover Analyzer", 
+                  style={'padding-left:15px'}),
 
     theme = bs_theme(preset='pulse'),
-  
     fillable = FALSE,
-    sidebar = sidebar(h4('Instructions'),
-                      uiOutput("instructions")
-                      ),
-    card(
-      layout_sidebar(
-          sidebar = sidebar(
-            title = "Step 1. Generate map of potential sites.",
-            h6('Please select a region of interest using the box tool on map.'),
-
-            selectInput("selection_type", "Type of site:", choices = c("random", "village")),
-            
-            # Conditionally show the numeric input only when 'random' is selected
-            conditionalPanel(
-              condition = "input.selection_type == 'random'",
-              numericInput("num_sites", "Number of random sites:", value = 100, min = 20)
+    
+    nav_panel("Home",
+      
+      card(
+        layout_sidebar(
+          class="p-3 border border-top-0 rounded-bottom",
+            sidebar = sidebar(
+              title = "Step 1. Generate a list of potential sites.",
+              h6('Please select a region of interest using the box tool on the map.'),
+  
+              selectInput("selection_type", "Type of site:", choices = c("random", "village")),
+              
+              # Conditionally show the numeric input only when 'random' is selected
+              conditionalPanel(
+                condition = "input.selection_type == 'random'",
+                numericInput("num_sites", "Number of random sites:", value = 100, min = 20)
+              ),
+  
+              fileInput("csvfile", 
+                        label = tagList("Upload a CSV of potential sites ", tags$em("(optional):")),
+                        accept = c(".csv")),
+              actionButton("goStep1", "Go"),
+              
+              h6('Bounding Box Coordinates (xmin, ymin, xmax, ymax):'),
+              textOutput("boundingBoxCoords"),
+              
+              h6('Number of Potential Sites:'),
+              textOutput("siteCount")
             ),
-
-            fileInput("csvfile", 
-                      label = tagList("Upload a CSV of potential sites ", tags$em("(optional):")),
-                      accept = c(".csv")),
-            actionButton("goStep1", "Go"),
-            
-            h6('Bounding Box Coordinates (xmin, ymin, xmax, ymax):'),
-            textOutput("boundingBoxCoords"),
-            
-            h6('Number of Potential Sites:'),
-            textOutput("siteCount")
-          ),
-          core_mapping_module_ui("siteMap")
-    )),
-    
-    navset_card_tab(
-      sidebar = sidebar(
-        title = 'Step 2. Load and analyze landcover data.',
-        h6('Upload a GeoTIFF covering the above area:'),
-        selectInput('product', 'Landcover Product:', choices = c('World Cover', 'Dynamic Land Cover', 'NDVI')),
-        fileInput("rastfile", "",
-                  accept = c("tif", ".tiff")),
-        numericInput("radius", "Enter radius from site center to analyze landcover (meters):", value = 1000),
-        actionButton("goStep2", "Go"),
-        downloadButton("saveFile", "Save File")
-      ),
-      nav_panel(
-        title = 'Landcover Map',
-        plotOutput("landcoverMap")
-      ),
-      nav_panel(
-        title='Dataset', 
-           DT::dataTableOutput("landcoverData")  # Adjust the column width as needed
-      )
-    ),
-    
+            core_mapping_module_ui("siteMap")
+      )),
+      
       navset_card_tab(
         sidebar = sidebar(
-        title = 'Step 3. Filter and compare sites.',
-        fileInput("landcsv", 
-                  label = tagList("Upload previously analyzed landcover data", tags$em("(optional):")),
-                  accept = c(".csv")),
-        # Create a fluid row to place X and Y axis inputs side by side
-        h6('Select a measure to compare'),
-        selectInput("measure", "Measurement", ""),  # X-axis label choice
-# 
-#   
-#         sliderInput(inputId = "BuiltUpSelect",
-#                     label = "Proportion Built-up",
-#                     min = 0,
-#                     step = 0.05,
-#                     max = 1,
-#                     value = c(0,1)),
-#         sliderInput(inputId = "TreeSelect",
-#                     label = "Proportion Treecover",
-#                     min = 0,
-#                     step = 0.05,
-#                     max = 1,
-#                     value = c(0,1)),
-#         sliderInput(inputId = "CropSelect",
-#                     label = "Proportion Cropland",
-#                     min = 0,
-#                     step=0.05,
-#                     max = 1,
-#                     value = c(0,1)),
-#         sliderInput(inputId = "GrassSelect",
-#                     label = "Proportion Grassland",
-#                     min = 0,
-#                     max = 1,
-#                     step=0.05,
-#                     value = c(0,1)),
-#         sliderInput(inputId = "ShrubSelect",
-#                     label = "Proportion Shrubland",
-#                     min = 0,
-#                     max = 1,
-#                     step=0.05,
-#                     value = c(0,1))
-       ),
-        nav_panel(title='Comparison Plot',
-                  tags$style(type = "text/css", ".container-fluid {padding-left:0px};  padding-right:15px ;margin-right:auto"),
-                  uiOutput("compPlot", inline=TRUE),
-                  class = 'leftAlign'
+          title = 'Step 2. Load and analyze landcover data.',
+          h6('Upload a GeoTIFF covering the above area:'),
+          selectInput('product', 
+                      'Landcover Product:', 
+                      choices = c('ESA WorldCover', 'Copernicus Global Land Cover', 'Dynamic World', 'NDVI')),
+          fileInput("rastfile", "",
+                    accept = c("tif", ".tiff")),
+          numericInput("radius", 
+                       "Enter radius from site center to analyze landcover data (meters):", 
+                       value = 1000),
+          actionButton("goStep2", "Go"),
+          downloadButton("saveFile", "Save File")
         ),
-        # nav_panel(title='Stats Report',
-        #           uiOutput('report', inline=TRUE),
-        #           class = 'leftAlign'
-        #           ),
-        nav_panel(title='Selected Data', 
-                  column(8, DT::dataTableOutput("outData")),  # Display the data table
-                  column(4, 
-                         downloadButton("outFile", "Save File"),  # Save button
-                         actionButton("clearButton", "Clear Selections")  # Clear button
-                  )
+        nav_panel(
+          title = 'Landcover Map',
+          plotOutput("landcoverMap")
+        ),
+        nav_panel(
+          title='Dataset', 
+             DT::dataTableOutput("landcoverData")  # Adjust the column width as needed
         )
       ),
-    
+      
+        navset_card_tab(
+          sidebar = sidebar(
+          title = 'Step 3. Filter and compare sites.',
+          fileInput("landcsv", 
+                    label = tagList("Upload previously analyzed landcover data", tags$em("(optional):")),
+                    accept = c(".csv")),
+          h6('Select a measure to compare'),
+          selectInput("measure", "Measurement", ""), 
+         ),
+          nav_panel(title='Comparison Plot',
+                   # tags$style(type = "text/css", ".container-fluid {padding-left:5px};  padding-right:15px ;margin-right:auto"),
+                    uiOutput("compPlot", inline=TRUE),
+                    class = 'leftAlign'
+          )
+          # nav_panel(title='Selected Data', 
+          #           column(8, DT::dataTableOutput("outData")),  # Display the data table
+          #           column(4, 
+          #                  downloadButton("outFile", "Save File"),  # Save button
+          #                  actionButton("clearButton", "Clear Selections")  # Clear button
+          #           )
+          #   )
+        )
+      ),
+  nav_panel(title = 'About', 
+            uiOutput('about'), 
+            tags$style(type = "text/css", ".container-fluid {padding-left:20px}"),
+            #class="p-3 border border-top-0 rounded-bottom"
+            )
 )
 
 
@@ -163,7 +135,7 @@ server <- function(session, input, output) {
 
   # Base map and text ----------------------------------------------------------
   map = core_mapping_module_server("siteMap", mapvals)
-  output$instructions <- renderUI({includeMarkdown("instructions.md")})
+  output$about <- renderUI({includeMarkdown("about.md")})
   
   # Check uploaded data --------------------------------------------------------
   observeEvent(input$csvfile, {
@@ -252,7 +224,8 @@ server <- function(session, input, output) {
   
  
    # Check uploaded raster -----------------------------------------------------
-   observeEvent(input$rastfile, {
+   observeEvent(c(input$rastfile, input$product), {
+     req(input$rastfile)
      req(sites())
      
      # Load raster:
@@ -264,21 +237,28 @@ server <- function(session, input, output) {
        return(NULL) 
      }
      
-     # TO-DO Error handling for wrong worldcover data categories
      # store raster for use
      if(input$product != 'NDVI'){
        levels(r) = raster_cats%>%subset(product == input$product)
      }
      
-     raster(r)
-     
-     # If all good, plot:
      output$landcoverMap <- renderPlot({
-       if (!is.null(raster())) {
-         plot(crop(r, ext(sites())))
-         plot(st_geometry(sites()), col="magenta", pch=8, cex=3, add=T)
-       }
+         tryCatch({
+           cropped_raster <- crop(r, ext(sites()))
+           plot(cropped_raster) # Attempt to plot the cropped raster
+           
+           # add label for sites
+           plot(st_geometry(sites()), col="magenta", pch=8, cex=3, add=TRUE)
+
+           # Store raster if works
+           raster(r)
+           
+         }, error = function(e) {
+           showNotification("Incorrect raster type selected.", type = "error")
+           return(NULL)
+         })
      })
+        
    })
 
  
@@ -315,7 +295,6 @@ server <- function(session, input, output) {
       
       df$wide = out_df
     })
-    
   
     
     output$landcoverData <- DT::renderDT({
@@ -420,9 +399,6 @@ server <- function(session, input, output) {
     selected_points(append(current_selection, list(selected_sites)))
   })
 
-  
-
-  
   # display selected points in a table
   output$outData <- DT::renderDT({
     selected_df <- df$wide%>%

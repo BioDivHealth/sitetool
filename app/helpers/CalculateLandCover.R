@@ -2,7 +2,6 @@
 
 ### Required Packages ### 
 library(terra)
-library(svMisc)
 
 # Helper Fucntions ------------------------------------------------------------
 
@@ -122,19 +121,6 @@ createNDVIDataFrame <- function(in_df, raster, type, dist, progress=F){
   
   return(df)
 }
-# 
-# df = read.csv('test2.csv')
-# df = df[1:3,]
-# df = df%>%st_as_sf(coords = c("longitude", "latitude"),
-#                    crs = "epsg:4326")
-# createNDVIDataFrame(df, r, 'NDVI', 1000)
-# 
-# df = df%>%subset(site %in% c('lans', 'hale'))%>%mutate(site_id = 1:2)
-# area = getCroppedArea(df$geometry[2], 1000)
-# raster_crop = crop(r, area)
-# 
-# 
-# 
 
 
 createBuildDF <- function(in_df, buildings, dist, progress=F){

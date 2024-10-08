@@ -96,7 +96,7 @@ generate_plot <- function(data, cat, measure) {
     options = list(
       width_svg = 5,
       height_svg = 3,
-      opts_sizing(rescale = TRUE, width=0.5),
+      opts_sizing(rescale = TRUE, width=0.2),
       opts_hover(css = "fill-opacity:1;fill:yellow;cursor:pointer;"),
       opts_selection(type = "single")
     )
