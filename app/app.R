@@ -1,13 +1,28 @@
 ## SHINY LANDCOVER APP ##
 
 # Packages  -------------------------------------------------------------------
-if (!require("Require")) {
-  install.packages("Require")
-  require("Require")
-}
+# if (!require("Require")) {
+#   install.packages("Require")
+#   require("Require")
+# }
+# 
+# Require(c("shiny", "shinyWidgets", "ggplot2", "bslib", "leaflet", "dplyr", "tidyr", "terra", "ggiraph", 
+#           "sf", "osmdata",  "ggdist"))
 
-Require(c("shiny", "shinyWidgets", "ggplot2", "bslib", "leaflet", "dplyr", "tidyr", "terra", "ggiraph", 
-          "sf", "osmdata", "gargoyle", "gt", "ggdist"))
+library('shiny')
+library('shinyWidgets')
+library('ggplot2')
+library('bslib')
+library('leaflet')
+library('dplyr')
+library('tidyr')
+library('terra')
+library('ggiraph')
+library('sf')
+library('osmdata')
+library('ggdist')
+
+
 
 # Functions and modules --------------------------------------------------------
 source('helpers/CalculateLandCover.R')
@@ -132,6 +147,7 @@ server <- function(session, input, output) {
   df <- reactiveValues(long=NULL, wide=NULL, filter=NULL)
   mapvals <- reactiveValues(poly = NULL)
   selected_points <- reactiveVal(list())
+  
 
   # Base map and text ----------------------------------------------------------
   map = core_mapping_module_server("siteMap", mapvals)

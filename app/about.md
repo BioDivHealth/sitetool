@@ -47,5 +47,5 @@ It is recommended to use the 10m resolution products due to the scale of the ana
 #### Credits
 - Simon Smart/[shinyscholar](https://simon-smart88.github.io/shinyscholar/) for the mapping code
 
-**Requests/issues?** 
+#### Requests/issues?
 Please log on github: https://github.com/BioDivHealth/ss-analyzer
