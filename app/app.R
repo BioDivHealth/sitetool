@@ -1,33 +1,22 @@
 ## SHINY LANDCOVER APP ##
 
 # Packages  -------------------------------------------------------------------
-# if (!require("Require")) {
-#   install.packages("Require")
-#   require("Require")
-# }
-# 
-# Require(c("shiny", "shinyWidgets", "ggplot2", "bslib", "leaflet", "dplyr", "tidyr", "terra", "ggiraph", 
-#           "sf", "osmdata",  "ggdist"))
-
-library('shiny')
-library('shinyWidgets')
-library('ggplot2')
-library('bslib')
-library('leaflet')
-library('dplyr')
-library('tidyr')
-library('terra')
-library('ggiraph')
-library('sf')
-library('osmdata')
-library('ggdist')
 
 
+if (!require("Require")) {
+  install.packages("Require")
+  require("Require")
+}
+
+Require(c("shiny", "shinyWidgets", "ggplot2", "bslib", "leaflet", "dplyr", "tidyr",
+          "terra", "ggiraph", "sf", "osmdata", "gargoyle", "gt", "ggdist"))
 
 # Functions and modules --------------------------------------------------------
+
 source('helpers/CalculateLandCover.R')
 source('helpers/core_mapping.R')
 source('helpers/report_stats.R')
+source('helpers/get_landuse_data.R')
 
 
 # Global vars and options  ----------------------------------------------------
@@ -56,6 +45,7 @@ ui <- page_navbar(
             sidebar = sidebar(
               title = "Step 1. Generate a list of potential sites.",
               h6('Please select a region of interest using the box tool on the map.'),
+              
   
               selectInput("selection_type", "Type of site:", choices = c("random", "village")),
               
@@ -82,14 +72,18 @@ ui <- page_navbar(
       navset_card_tab(
         sidebar = sidebar(
           title = 'Step 2. Load and analyze landcover data.',
-          h6('Upload a GeoTIFF covering the above area:'),
+          checkboxInput('upload', 'Upload your own data?', value = FALSE),
           selectInput('product', 
                       'Landcover Product:', 
-                      choices = c('ESA WorldCover', 'Copernicus Global Land Cover', 'Dynamic World', 'NDVI')),
-          fileInput("rastfile", "",
-                    accept = c("tif", ".tiff")),
+                      choices = c('Copernicus Global Land Cover')),
+          conditionalPanel(
+            condition = "input.upload",
+         #   h6('Upload a GeoTIFF covering the above area:'),
+            fileInput("rastfile", "Upload a GeoTIFF covering the above area:", accept = c("tif", ".tiff"))   
+          ),
+
           numericInput("radius", 
-                       "Enter radius from site center to analyze landcover data (meters):", 
+                       "Enter radius from each site center to analyze landcover data (meters):", 
                        value = 1000),
           actionButton("goStep2", "Go"),
           downloadButton("saveFile", "Save File")
@@ -111,12 +105,11 @@ ui <- page_navbar(
                     label = tagList("Upload previously analyzed landcover data", tags$em("(optional):")),
                     accept = c(".csv")),
           h6('Select a measure to compare'),
-          selectInput("measure", "Measurement", ""), 
+          selectInput("measure", "Measurement", "")
          ),
           nav_panel(title='Comparison Plot',
                    # tags$style(type = "text/css", ".container-fluid {padding-left:5px};  padding-right:15px ;margin-right:auto"),
-                    uiOutput("compPlot", inline=TRUE),
-                    class = 'leftAlign'
+                    uiOutput("compPlot", inline=TRUE)
           )
           # nav_panel(title='Selected Data', 
           #           column(8, DT::dataTableOutput("outData")),  # Display the data table
@@ -129,7 +122,7 @@ ui <- page_navbar(
       ),
   nav_panel(title = 'About', 
             uiOutput('about'), 
-            tags$style(type = "text/css", ".container-fluid {padding-left:20px}"),
+            tags$style(type = "text/css", ".container-fluid {padding-left:20px}")
             #class="p-3 border border-top-0 rounded-bottom"
             )
 )
@@ -152,6 +145,19 @@ server <- function(session, input, output) {
   # Base map and text ----------------------------------------------------------
   map = core_mapping_module_server("siteMap", mapvals)
   output$about <- renderUI({includeMarkdown("about.md")})
+  
+  # Reactivity for raster type -------------------------------------------------
+  observe({
+    if (input$upload) {
+      # If the checkbox is checked, update the selectInput choices
+      updateSelectInput(session, 'product', 
+                        choices = c('Copernicus Global Land Cover', 'ESA WorldCover',  'Dynamic World', 'NDVI'))
+    } else {
+      # Default choices if checkbox is not checked
+      updateSelectInput(session, 'product', 
+                        choices = c('Copernicus Global Land Cover'))
+    }
+  })
   
   # Check uploaded data --------------------------------------------------------
   observeEvent(input$csvfile, {
@@ -239,84 +245,126 @@ server <- function(session, input, output) {
   })
   
  
-   # Check uploaded raster -----------------------------------------------------
-   observeEvent(c(input$rastfile, input$product), {
-     req(input$rastfile)
-     req(sites())
-     
-     # Load raster:
-     r = rast(input$rastfile$datapath)
-     
-     # Check that sites are within uploaded raster:
-     if (!(relate(ext(sites()), ext(r), relation='within'))) {
-       showNotification("The uploaded raster and the bounding box do not overlap. Please ensure they cover the same region.", type="error")
-       return(NULL) 
-     }
-     
-     # store raster for use
-     if(input$product != 'NDVI'){
-       levels(r) = raster_cats%>%subset(product == input$product)
-     }
-     
-     output$landcoverMap <- renderPlot({
-         tryCatch({
-           cropped_raster <- crop(r, ext(sites()))
-           plot(cropped_raster) # Attempt to plot the cropped raster
-           
-           # add label for sites
-           plot(st_geometry(sites()), col="magenta", pch=8, cex=3, add=TRUE)
+   # # Check uploaded raster -----------------------------------------------------
+   # observeEvent(c(input$rastfile, input$product), {
+   #   req(input$rastfile)
+   #   req(sites())
+   # 
+   #   # Load raster:
+   #   if(input$product == 'Default'){
+   #     r = cov_landuse(sites())
+   #     levels(r) = raster_cats%>%subset(product == 'Copernicus Global Land Cover')
+   #   }
+   #   else{
+   #     r = rast(input$rastfile$datapath)
+   # 
+   #     # Check that sites are within uploaded raster:
+   #     if (!(relate(ext(sites()), ext(r), relation='within'))) {
+   #       showNotification("The uploaded raster and the bounding box do not overlap. Please ensure they cover the same region.", type="error")
+   #       return(NULL)
+   #     }
+   #     # store raster for use
+   #     if(input$product != 'NDVI'){
+   #       levels(r) = raster_cats%>%subset(product == input$product)
+   #     }
+   #   }
+   # 
+   #   output$landcoverMap <- renderPlot({
+   #       tryCatch({
+   #         cropped_raster <- crop(r, ext(sites()))
+   #         plot(cropped_raster) # Attempt to plot the cropped raster
+   # 
+   #         # add label for sites
+   #         plot(st_geometry(sites()), col="magenta", pch=8, cex=3, add=TRUE)
+   # 
+   #         # Store raster if works
+   #         raster(r)
+   # 
+   #       }, error = function(e) {
+   #         showNotification("Incorrect raster type selected.", type = "error")
+   #         return(NULL)
+   #       })
+   #   })
+   # 
+   # })
 
-           # Store raster if works
-           raster(r)
-           
-         }, error = function(e) {
-           showNotification("Incorrect raster type selected.", type = "error")
-           return(NULL)
-         })
-     })
-        
-   })
 
  
   # Step 2: Caculate landcover values ------------------------------------------
   observeEvent(input$goStep2, {
-    req(raster())
     req(sites())
-
-    withProgress(message = "Calculating landcover values", value=0, {
+    
+    # Load raster:
+    if (input$upload) {
+      r <- rast(input$rastfile$datapath)
       
-      if(input$product == 'NDVI'){
-        out_df = createNDVIDataFrame(sites(), raster=raster(), type=input$product, dist=input$radius, progress=T)
-      }
-      else{
-        out_df = createLCDataFrame(sites(), raster=raster(), dist=input$radius, progress=T)
+      # Check that sites are within uploaded raster:
+      if (!(relate(ext(sites()), ext(r), relation = 'within'))) {
+        showNotification("The uploaded raster and the bounding box do not overlap. Please ensure they cover the same region.", type = "error")
+        return(NULL)
       }
       
-      sites_xy = sites()%>%
+      # Store raster for use
+      if (input$product != 'NDVI') {
+        levels(r) <- raster_cats %>% subset(product == input$product)
+      }
+    } else {
+      withProgress(message = 'Downloading landcover data', value = 0, {
+        r <- cov_landuse(sites())
+        levels(r) <- raster_cats %>% subset(product == 'Copernicus Global Land Cover')
+      })
+    }
+    
+    # Immediately render the plot once the raster is available
+    output$landcoverMap <- renderPlot({
+      req(r)  # Ensure raster is available
+      tryCatch({
+        # need to also catch this Warning: [plot] unknown categories in raster values
+        cropped_raster <- crop(r, ext(sites()))
+        plot(cropped_raster)  # Plot the cropped raster
+        
+        # Add label for sites
+        plot(st_geometry(sites()), col = "black", pch = 8, cex = 3, add = TRUE)
+        
+      }, error = function(e) {
+        showNotification("Error plotting raster: incorrect type or data mismatch.", type = "error")
+        return(NULL)
+      })
+    })
+    
+    # Proceed with calculating landcover values and saving the dataframe
+    withProgress(message = "Calculating landcover values", value = 0, {
+      if (input$product == 'NDVI') {
+        out_df <- createNDVIDataFrame(sites(), raster = r, type = input$product, dist = input$radius, progress = TRUE)
+      } else {
+        out_df <- createLCDataFrame(sites(), raster = r, dist = input$radius, progress = TRUE)
+      }
+      
+      sites_xy <- sites() %>%
         mutate(longitude = sf::st_coordinates(.)[,1],
-               latitude = sf::st_coordinates(.)[,2])%>%
+               latitude = sf::st_coordinates(.)[,2]) %>%
         st_drop_geometry()
       
-      
       # Add x and y of sites to dataframe
-      out_df = out_df%>%
+      out_df <- out_df %>%
         left_join(sites_xy)
       
       # Save as long format
-      df$long = out_df
+      df$long <- out_df
       
       # Convert to wide format for export
-      out_df = out_df%>%
-        pivot_wider(names_from=c(cover, measure), values_from=value)
+      out_df <- out_df %>%
+        pivot_wider(names_from = c(cover, measure), values_from = value)
       
-      df$wide = out_df
+      df$wide <- out_df
     })
-  
     
+    # Render the data table after processing is complete
     output$landcoverData <- DT::renderDT({
       df$wide
     })
   })
+  
   
   # Save File: Full dataset  ------------------------------------------
   output$saveFile <- downloadHandler(
