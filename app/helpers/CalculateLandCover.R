@@ -2,6 +2,7 @@
 
 ### Required Packages ### 
 library(terra)
+library(tidyr)
 
 # Helper Fucntions ------------------------------------------------------------
 

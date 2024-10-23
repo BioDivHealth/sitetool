@@ -12,7 +12,7 @@ By using this tool, researchers may uncover previously unconsidered field sites 
 
 #### Input Raster Sources
 
-The app requires the user to upload a landcover raster for their region of interest in *GeoTIFF* format. The app currently can take three types of land-use/landcover data:
+You can use the default landcover raster (Copernicus Land Cover 100m) orupload a landcover raster for your region of interest in *GeoTIFF* format. The app currently can take three types of land-use/landcover data:
 1. [ESA WorldCover Viewer](https://viewer.esa-worldcover.org/worldcover/) 
 2. [Dynamic World](https://dynamicworld.app/)
 3. [Copernicus Land Cover](https://lcviewer.vito.be/)
@@ -32,7 +32,7 @@ It is recommended to use the 10m resolution products due to the scale of the ana
 
 
 ##### Step 2
-1. Please head to one of the websites to download a landcover raster for your area. If your area encompasses multiple tiles, please merge before uploading. You may use the bounding box coordinates from the previous step to select the same region of interest, making sure to add an appropriate sized buffer around the area for the land cover analysis. Select the product type for your raster and upload. If the raster uploads correctly, an plot of your raster will display. (Note: the current upload size limit is 2GB, please ensure files are smaller than this.)
+1. If you are uploading your own raster data, please head to one of the websites to download a landcover raster for your area. If your area encompasses multiple tiles, please merge before uploading. You may use the bounding box coordinates from the previous step to select the same region of interest, making sure to add an appropriate sized buffer around the area for the land cover analysis. Select the product type for your raster and upload. If the raster uploads correctly, an plot of your raster will display. (Note: the current upload size limit is 2GB, please ensure files are smaller than this.)
 2. Input the distance from the center of each potential point you would like the landcover analyzed from in meters. This distance is the distance from the point to each edge of the raster on all four sides, so a distances of 1000 meters (1km) would lead to an area of analysis of 4 km<sup>2</sup>.
 3. Press **go**. The calculations may take a while to run. The data will be displayed in the data tab when finished. Press **save file** to export. 
 
@@ -45,7 +45,7 @@ It is recommended to use the 10m resolution products due to the scale of the ana
   - Total Area (m<sup>2</sup>): area covered by land cover category in the area analyzed
 
 #### Credits
-- Simon Smart/[shinyscholar](https://simon-smart88.github.io/shinyscholar/) for the mapping code
+- Simon Smart/[shinyscholar](https://simon-smart88.github.io/shinyscholar/) for the mapping code.
 
 **Requests/issues?** 
 Please log on github: https://github.com/BioDivHealth/ss-analyzer
