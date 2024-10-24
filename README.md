@@ -7,7 +7,7 @@ A tool to produce a list of potential field sites and assess the landcover chara
 - Generate a list of potential field sites in a selected area. 
 - Analyze landcover characteristics for a list of sites.
 - Filter and compare sites based on landcover parameters.
-- Perform statistical comparisons to between potential sites. 
+- Perform statistical comparisons between potential sites. 
 
 The app is available in a browser version at: https://nimirz.shinyapps.io/ss-analyzer/. However, the app will run best when run on your local computer by following the below instructions.  
 
