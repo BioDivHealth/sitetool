@@ -4,7 +4,7 @@
 library(terra)
 library(tidyr)
 
-# Helper Fucntions ------------------------------------------------------------
+# Helper Functions ------------------------------------------------------------
 
 # Creates a buffer around a point location
 getCroppedArea <- function(place, dist=1000){

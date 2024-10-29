@@ -1,34 +1,8 @@
 ## SHINY LANDCOVER APP ##
+source('global.R')
 
-# Packages  -------------------------------------------------------------------
-
-
-if (!require("Require")) {
-  install.packages("Require")
-  require("Require")
-}
-
-Require(c("shiny", "shinyWidgets", "ggplot2", "bslib", "leaflet", "dplyr", "tidyr",
-          "terra", "ggiraph", "sf", "osmdata", "gargoyle", "gt", "ggdist"))
-
-# Functions and modules --------------------------------------------------------
-
-source('helpers/CalculateLandCover.R')
-source('helpers/core_mapping.R')
-source('helpers/report_stats.R')
-source('helpers/get_landuse_data.R')
-
-
-# Global vars and options  ----------------------------------------------------
-
-# Increase max upload size 
-options(shiny.maxRequestSize=2000*1024^2)
-
-# Labels for land cover categories
-raster_cats = read.csv('data/categories.csv')
 
 # Define UI  -----------------------------------------------------------
-
 ui <- page_navbar(
   
     title =  span("Site Selection Landcover Analyzer", 
@@ -38,52 +12,30 @@ ui <- page_navbar(
     fillable = FALSE,
     
     nav_panel("Home",
-      
       card(
-        layout_sidebar(
-          class="p-3 border border-top-0 rounded-bottom",
-            sidebar = sidebar(
-              title = "Step 1. Generate a list of potential sites.",
-              h6('Please select a region of interest using the box tool on the map.'),
-              
-  
-              selectInput("selection_type", "Type of site:", choices = c("random", "village")),
-              
-              # Conditionally show the numeric input only when 'random' is selected
-              conditionalPanel(
-                condition = "input.selection_type == 'random'",
-                numericInput("num_sites", "Number of random sites:", value = 100, min = 20)
-              ),
-  
-              fileInput("csvfile", 
-                        label = tagList("Upload a CSV of potential sites ", tags$em("(optional):")),
-                        accept = c(".csv")),
-              actionButton("goStep1", "Go"),
-              
-              h6('Bounding Box Coordinates (xmin, ymin, xmax, ymax):'),
-              textOutput("boundingBoxCoords"),
-              
-              h6('Number of Potential Sites:'),
-              textOutput("siteCount")
-            ),
-            core_mapping_module_ui("siteMap")
-      )),
-      
+        id = 'map',
+        mapModuleUI('mapInputs')
+      ),
+    
       navset_card_tab(
         sidebar = sidebar(
+          
           title = 'Step 2. Load and analyze landcover data.',
+          
+          width = 350, 
+          
           checkboxInput('upload', 'Upload your own data?', value = FALSE),
+          conditionalPanel(
+            condition = "input.upload",
+            fileInput("rastfile", "Upload a GeoTIFF covering the above area:", accept = c("tif", ".tiff"))   
+          ),
           selectInput('product', 
                       'Landcover Product:', 
                       choices = c('Copernicus Global Land Cover')),
-          conditionalPanel(
-            condition = "input.upload",
-         #   h6('Upload a GeoTIFF covering the above area:'),
-            fileInput("rastfile", "Upload a GeoTIFF covering the above area:", accept = c("tif", ".tiff"))   
-          ),
+
 
           numericInput("radius", 
-                       "Enter radius from each site center to analyze landcover data (meters):", 
+                       "Enter distance from each site to analyze landcover data (meters):", 
                        value = 1000),
           actionButton("goStep2", "Go"),
           downloadButton("saveFile", "Save File")
@@ -120,33 +72,31 @@ ui <- page_navbar(
           #   )
         )
       ),
+  
   nav_panel(title = 'About', 
             uiOutput('about'), 
             tags$style(type = "text/css", ".container-fluid {padding-left:20px}")
-            #class="p-3 border border-top-0 rounded-bottom"
             )
 )
-
-
 # Define Server ----------------------------------------------------------------
-
 server <- function(session, input, output) {
+  source('modules/mapModule.R', local=T)
+  source('modules/core_mapping.R', local=T)
   
   # Reactive values ------------------------------------------------------------
-  sites <- reactiveVal(NULL)
+  
   input_sites <- reactiveVal(NULL)
   raster <- reactiveVal(NULL)
-  bounds <- reactiveVal(NULL)
   df <- reactiveValues(long=NULL, wide=NULL, filter=NULL)
-  mapvals <- reactiveValues(poly = NULL)
   selected_points <- reactiveVal(list())
   
-
   # Base map and text ----------------------------------------------------------
-  map = core_mapping_module_server("siteMap", mapvals)
-  output$about <- renderUI({includeMarkdown("about.md")})
   
+  output$about <- renderUI({includeMarkdown("about.md")})  
+  sites <- mapModuleServer("mapInputs")
+
   # Reactivity for raster type -------------------------------------------------
+  
   observe({
     if (input$upload) {
       # If the checkbox is checked, update the selectInput choices
@@ -159,140 +109,11 @@ server <- function(session, input, output) {
     }
   })
   
-  # Check uploaded data --------------------------------------------------------
-  observeEvent(input$csvfile, {
-    req(input$csvfile)
-    tryCatch({
-      uploaded_data = read.csv(input$csvfile$datapath)
-      
-      # Check if the uploaded data is a dataframe
-      if (!is.data.frame(uploaded_data)) {
-        stop("wrong file")
-      }
-      
-      # Check for correct columns
-      if (any(!c('site', 'longitude', 'latitude') %in% colnames(uploaded_data))){
-        stop("incorrect columns")
-      }
-      
-      input_sites(uploaded_data)
-    },  error = function(e) {
-      showNotification("Upload file is of incorrect type. Please upload a CSV with columns labeled site, longitude, and latitude.", type = "error")
-      return(NULL)
-    })
-  })
   
-  # Step 1: Get points from map  -----------------------------------------------
-  observeEvent(input$goStep1, {
-      req(mapvals$poly)
-        
-      # Create bounding box from user input
-      search_area <- c(mapvals$xmin, mapvals$ymin, mapvals$xmax, mapvals$ymax)
-      bounds(search_area)
-      
-      # Output bounding box coordinates
-      output$boundingBoxCoords <- renderText({
-        paste0("(", mapvals$xmin, ", ", mapvals$ymin, ", ", 
-              mapvals$xmax, ", ", mapvals$ymax, ")")
-      })
-      
-      # Download sites within the bounding box
-      if(input$selection_type == 'village'){
-        sites_data <- opq(bbox = search_area) %>%
-          add_osm_feature(key = "place", value = c("city", "suburb", "village", "town", "hamlet")) %>%
-          osmdata_sf()
-        
-        # Extract village points and clean the data
-        sites_filter <- sites_data$osm_points %>%
-          select(osm_id, name, geometry) %>%
-          rename(site_id = osm_id, site = name) %>%
-          mutate(input_site = FALSE)%>%
-          filter(!is.na(site))
-      }
-      
-      if(input$selection_type == 'random'){
-        sites_filter = data.frame(
-          site = as.character(1:input$num_sites),
-          site_id = paste0('random_', 1:input$num_sites),
-          input_site = FALSE,
-          lat = runif(input$num_sites, min = mapvals$ymin, max = mapvals$ymax),
-          lon = runif(input$num_sites, min = mapvals$xmin, max = mapvals$xmax)
-        )%>%
-        st_as_sf(coords=c('lon', 'lat'), crs=4326)  
-      }
-      
-      if(!is.null(input_sites())){
-        id = input_sites()
-        id$input_site= TRUE
-        id$site_id = paste0('input_',1:nrow(id))
-        id = st_as_sf(id, coords = c("longitude", "latitude"),
-                 crs = "epsg:4326")%>%
-          select(c(site, site_id, input_site))
-  
-        sites_filter = rbind(id, sites_filter)
-      }
-      
-      # store sites for later use
-      sites(sites_filter)
-      
-      # Output number of potential sites (including input sites)
-      output$siteCount <- renderText({
-          nrow(sites())
-      })
-      
-      # update map with selected sites
-      map_points(map, mapvals, sites())
-  })
-  
- 
-   # # Check uploaded raster -----------------------------------------------------
-   # observeEvent(c(input$rastfile, input$product), {
-   #   req(input$rastfile)
-   #   req(sites())
-   # 
-   #   # Load raster:
-   #   if(input$product == 'Default'){
-   #     r = cov_landuse(sites())
-   #     levels(r) = raster_cats%>%subset(product == 'Copernicus Global Land Cover')
-   #   }
-   #   else{
-   #     r = rast(input$rastfile$datapath)
-   # 
-   #     # Check that sites are within uploaded raster:
-   #     if (!(relate(ext(sites()), ext(r), relation='within'))) {
-   #       showNotification("The uploaded raster and the bounding box do not overlap. Please ensure they cover the same region.", type="error")
-   #       return(NULL)
-   #     }
-   #     # store raster for use
-   #     if(input$product != 'NDVI'){
-   #       levels(r) = raster_cats%>%subset(product == input$product)
-   #     }
-   #   }
-   # 
-   #   output$landcoverMap <- renderPlot({
-   #       tryCatch({
-   #         cropped_raster <- crop(r, ext(sites()))
-   #         plot(cropped_raster) # Attempt to plot the cropped raster
-   # 
-   #         # add label for sites
-   #         plot(st_geometry(sites()), col="magenta", pch=8, cex=3, add=TRUE)
-   # 
-   #         # Store raster if works
-   #         raster(r)
-   # 
-   #       }, error = function(e) {
-   #         showNotification("Incorrect raster type selected.", type = "error")
-   #         return(NULL)
-   #       })
-   #   })
-   # 
-   # })
-
-
- 
   # Step 2: Caculate landcover values ------------------------------------------
   observeEvent(input$goStep2, {
-    req(sites())
+    #req(sites())
+    str(sites())
     
     # Load raster:
     if (input$upload) {
@@ -366,7 +187,7 @@ server <- function(session, input, output) {
   })
   
   
-  # Save File: Full dataset  ------------------------------------------
+  # Save File: Full dataset  ---------------------------------------------------
   output$saveFile <- downloadHandler(
     filename = function() {
       paste0("landcover_analyzer_export.csv")
