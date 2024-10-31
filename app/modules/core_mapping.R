@@ -25,11 +25,14 @@ reset_map <- function(map, draw, bbox){
 }
 
 map_points <- function(map, sites) {
-
+  mn_lng = mean(st_coordinates(sites)[, 1])
+  mn_lat = mean(st_coordinates(sites)[, 2])
+  
   if (!is.null(sites) && nrow(sites) > 0) {
     map <- map %>%
       clearMarkers()%>%
       clearControls()%>%
+      setView(lng = mn_lng, lat = mn_lat, zoom = 8)%>%
       addCircleMarkers(data = sites, 
                        lng = ~st_coordinates(sites)[, 1], 
                        lat = ~st_coordinates(sites)[, 2], 
@@ -46,6 +49,24 @@ map_points <- function(map, sites) {
       )
   }
 }
+
+draw_sf <- function(map, sf_obj) {
+  map <- map %>%
+    reset_map(draw=F)%>%
+    #fitBounds(lng1 = bbox["xmin"], lat1 = bbox["ymin"], lng2 = bbox["xmax"], lat2 = bbox["ymax"]) %>%
+    addPolygons(data = sf_obj, color = "#5365FF", fillOpacity = 0.2)
+  
+}
+
+add_raster <- function(map, r){
+ # pal <- colorFactor(topo.colors(nlevels(r)), levels(r))
+  
+  map <- map %>%
+    clearImages() %>%  # Clear any previous raster
+    addRasterImage(r, opacity = 0.8) %>%
+    addRasterLegend(r, opacity = 0.8)
+}
+
 
 # Map UI -----------------------------------------------------------------------
 core_mapping_module_ui <- function(id) {
@@ -114,20 +135,12 @@ core_mapping_module_server <- function(id, common) {
           map%>%
             map_points(common$sites)
         }
+        if(!is.null(common$raster)){
+          map%>%
+            add_raster(common$raster)
+        }
       })
         
-          # map%>%
-          #   leaflet.extras::removeDrawToolbar(clearFeatures=TRUE)%>%
-          #   clearShapes() %>%
-          #   clearMarkers()%>%
-          #   clearControls()%>%
-          #   addRectangles(
-          #     lng1 = common$bbox[1], lat1 = common$bbox[2],
-          #     lng2 = common$bbox[3], lat2 = common$bbox[4],
-          #     color = "blue", weight = 2, fillOpacity = 0.2
-          #   )
-      #  }
-     
   
     })
   }
@@ -146,12 +159,5 @@ draw_bbox <- function(map, bbox) {
 }
 
 
-draw_sf <- function(map, sf_obj) {
-  map <- map %>%
-    reset_map(draw=F)%>%
-    #fitBounds(lng1 = bbox["xmin"], lat1 = bbox["ymin"], lng2 = bbox["xmax"], lat2 = bbox["ymax"]) %>%
-    addPolygons(data = sf_obj, color = "#5365FF", fillOpacity = 0.2)
-  
-}
 
 

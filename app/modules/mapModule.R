@@ -1,79 +1,95 @@
+# Returns a list of sites based user input parameters
 
+# UI ---------------------------------------------------------------------------
 mapModuleUI <-  function(id){
      ns <- NS(id)
-  
-     layout_sidebar(
-
-       class="p-3 border border-top-0 rounded-bottom",
-        sidebar = sidebar(
-         title = "Step 1. Generate a list of potential sites.",
-         width = 350,
-         
-         # Select bbox input type:
-          radioButtons(ns('map_draw'), h6('Please select a region of interest using:'),
-                       choices = c("Box tool on map" = TRUE, "Bounding box coordinates" = FALSE)),
-      
-         # Conditionally show inputs for bounding box
-          conditionalPanel(
-            ns=NS(id),
-            condition = "input.map_draw == 'FALSE'",
-            textInput(ns('bbox_coords'),  h6("Enter coordinates separated by commas (xmin, ymin, xmax, ymax):"))
-          ),
-         
-         conditionalPanel(
-           ns=NS(id),
-           condition = "input.map_draw == 'TRUE'",
-           h6('Bounding box coordinates:'), 
-           textOutput(ns("boundingBoxCoords")),
+     card(
+       layout_sidebar(
+         class="p-3 border border-top-0 rounded-bottom",
+         sidebar = sidebar(
+           title = "Step 1. Generate a list of potential sites.",
+           width = 350,
+           
+           ## Input Type ## 
+           radioButtons(ns('map_draw'), h6('Please select a region of interest using:'),
+                        choices = c("Box tool on map" = TRUE, "Bounding box coordinates" = FALSE)),
+           
+           
+           conditionalPanel(
+             ns=NS(id),
+             condition = "input.map_draw == 'FALSE'",
+             textInput(ns('bbox_coords'),  h6("Enter coordinates separated by commas (xmin, ymin, xmax, ymax):"))
+           ),
+           
+           conditionalPanel(
+             ns=NS(id),
+             condition = "input.map_draw == 'TRUE'",
+             h6('Bounding box coordinates:'), 
+             textOutput(ns("boundingBoxCoords")),
+           ),
+           
+           ## Site Type ##
+           selectInput(ns('selection_type'), h6('Please select a type of site:'), choices = c("random", "village")),
+           
+           # Params for random type
+           conditionalPanel(
+             ns=NS(id),
+             condition = "input.selection_type == 'random'",
+             fluidRow(
+               column(4, tags$label("Number of sites:")),
+               column(8, textInput(ns('num_sites'), label = NULL, value = 100, placeholder = "Enter number of sites"))
+             )),
+           fluidRow(
+             column(4, tags$label("Distance from main road (m)")),
+             column(8, sliderInput(ns('dist_road'), label = NULL, min = 0, max = 2000, value = 500, step = 200))
+           ),
+           fluidRow(
+             column(4, tags$label("Distance from city (km)")),
+             column(8, sliderInput(ns('dist_city'),  label = NULL, min = 0, max = 10, value = 5))
+           ),
+           
+           # Params for village type
+           conditionalPanel(
+             ns=NS(id),
+             condition = "input.selection_type == 'village'",
+             fluidRow(
+               column(4, tags$label("City population limit (thousands)")),
+               column(8, sliderInput(ns('city_pop'), label = NULL, min = 0, max = 1000, value = 10))
+             ),
+             fluidRow(
+               column(4, tags$label('Number of Potential Sites:')),
+               column(8, textOutput(ns("siteCount")))
+             )
+             
+           ),
+           
+           ## Input Sites ## 
+           radioButtons(ns('input_sites'), h6('Input Sites'),
+                        choices = c("None" = "none", 
+                                    "Upload a csv" = "csv", 
+                                    "Select on map" = "map")),
+           conditionalPanel(
+             ns = NS(id),
+             fileInput(ns("csvfile"), 
+                       label = h6(tagList("Upload a CSV of potential sites ", tags$em("(optional):"))),
+                       accept = c(".csv"))
+           ),
+           
+           actionButton(ns("goStep1"), "Go"),
          ),
-
-        selectInput(ns('selection_type'), h6('Please select a type of site:'), choices = c("random", "village")),
-    
-        # Conditionally show the numeric input only when 'random' is selected
-        conditionalPanel(
-          ns=NS(id),
-          condition = "input.selection_type == 'random'",
-          fluidRow(
-            column(4, tags$label("Number of sites:")),
-            column(8, textInput(ns('num_sites'), label = NULL, value = 100, placeholder = "Enter number of sites"))
-          )),
-          fluidRow(
-            column(4, tags$label("Distance from main road (m)")),
-            column(8, sliderInput(ns('dist_road'), label = NULL, min = 0, max = 2000, value = 100, step = 400))
-          ),
-          fluidRow(
-            column(4, tags$label("Distance from city (km)")),
-            column(8, sliderInput(ns('dist_city'),  label = NULL, min = 0, max = 10, value = 5))
-          ),
-        # City size limit when village selected
-        conditionalPanel(
-          ns=NS(id),
-          condition = "input.selection_type == 'village'",
-          h6('Number of Potential Sites:'),
-          textOutput(ns("siteCount")),
-          fluidRow(
-            column(4, tags$label("City population limit (thousands)")),
-            column(8, sliderInput(ns('city_pop'), label = NULL, min = 0, max = 1000, value = 10))
-          )
-        ),
-        
-        fileInput(ns("csvfile"), 
-                  label = h6(tagList("Upload a CSV of potential sites ", tags$em("(optional):"))),
-                  accept = c(".csv")),
-        actionButton(ns("goStep1"), "Go"),
-        ),
-       
-    core_mapping_module_ui(ns("siteMap"))
+         
+         core_mapping_module_ui(ns("siteMap"))
+     )
   )
 }
 
 
-
+# Server  ----------------------------------------------------------------------
 mapModuleServer <- function(id){
   
   moduleServer(id, function(input, output, session) {
     
-    # Base map and text --------------------------------------------------------
+    # Reactive values  ---------------------------------------------------------
     sites <- reactiveVal(NULL)
     input_sites <- reactiveVal(NULL)
     mapvals <- reactiveValues(bbox=NULL, draw=FALSE, sites=NULL)
@@ -189,7 +205,7 @@ mapModuleServer <- function(id){
       mapvals$sites = sites_filter
       sites(sites_filter)
     })
-     return(reactive(sites())) 
+    return(reactive(sites())) 
   })
 }
 

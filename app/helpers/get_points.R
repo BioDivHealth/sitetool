@@ -7,14 +7,13 @@ get_random_points <- function(bbox, n_points, road_dist, city_dist){
   # water bodies
   water_query <- opq(bbox = bbox) %>%
     add_osm_feature(key = "water")
-  print('here')
+
   water_data <- osmdata_sf(water_query)$osm_multipolygons
   if (is.null(water_data)) {
     water_data <- st_sf(geometry = st_sfc())  # Create empty spatial object
   } else {
     water_data <- st_make_valid(water_data)
   }
-  print('here2')
 
   # roads
   roads_query <- opq(bbox = bbox) %>%
@@ -34,21 +33,20 @@ get_random_points <- function(bbox, n_points, road_dist, city_dist){
   if (is.null(city_data)) {
     city_data <- st_sf(geometry = st_sfc())  # Create empty spatial object
   }
-  print('here3')
-  
+
   
   valid_points = vector('list', length=n_points)
   point = 1
   while (point < n_points+1) {
     
     random_point <- st_sfc(st_point(c(runif(1, bbox[1], bbox[3]), runif(1, bbox[2], bbox[4]))), crs=4326)
-    print('here4')
+
     # check if intersect with any restricted areas
     intersect_road <- any(st_is_within_distance(random_point, road_data%>%st_set_crs(4326), dist=road_dist, sparse=FALSE))
     intersect_city <- any(st_is_within_distance(random_point, city_data%>%st_set_crs(4326), dist=city_dist, sparse=FALSE))
     #intersect_city <- any(st_intersects(random_point, road_data, sparse = FALSE))
     intersect_water <- any(st_intersects(random_point, water_data%>%st_set_crs(4326), sparse = FALSE))
-    print('here5')
+
     
     if(!(intersect_road | intersect_city | intersect_water)){
       print(point)
@@ -63,7 +61,7 @@ get_random_points <- function(bbox, n_points, road_dist, city_dist){
                                     site_id = paste0('random_', 1:n_points),
                                     input_site = FALSE,
                                     geometry=do.call(rbind, valid_points)),
-                          crs = 4362)
+                          crs = 4326)
   
   str(valid_points)
     
