@@ -34,7 +34,7 @@ landcoverInput <-  function(id){
       downloadButton(ns("saveFile"), "Save File")
     ),
     nav_panel(
-      title='Plot',
+      title='Map',
       core_mapping_module_ui(ns('lcMap'))
     ),
     nav_panel(
@@ -118,6 +118,9 @@ landcoverOutput <- function(id, sites){
         # Add x and y of sites to dataframe
         out_df <- out_df %>%
           left_join(sites_xy)
+        
+        # Add product being used
+        out_df$product = input$product
 
       })
 

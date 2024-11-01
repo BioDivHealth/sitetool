@@ -44,11 +44,10 @@ plotServer <- function(id, indf = NULL) {
       # Organize dataframe for plotting
       d <- df() %>%
         left_join(raster_cats %>% 
-                    filter(product == 'Copernicus Global Land Cover') %>% 
                     select(-c(subcover, value)) %>%
                     group_by(cover) %>%
                     slice(1),
-                  by = "cover") %>%
+                  by = c("cover", "product")) %>%
         mutate(
           group = ifelse(input_site == TRUE, 'Input Sites', 'All Sites'),
           group = factor(group, levels = c('Input Sites', 'All Sites')),

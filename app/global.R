@@ -24,3 +24,6 @@ options(shiny.maxRequestSize=2000*1024^2)
 
 # Labels for land cover categories
 raster_cats = read.csv('data/categories.csv')
+
+# Shapefiles for cropping and getting points
+land_boundaries = st_read('data/ne_50m_land/ne_50m_land.shp')

@@ -186,8 +186,7 @@ mapModuleServer <- function(id){
 
         sites_filter = get_random_points(mapvals$bbox, 
                                          as.numeric(input$num_sites), 
-                                         input$dist_road, 
-                                         input$dist_city)
+                                         input$dist_road)
       }
       
       if(!is.null(input_sites())){

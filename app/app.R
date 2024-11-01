@@ -11,7 +11,6 @@ ui <- page_navbar(
     theme = bs_theme(preset='pulse'),
     
     
-    
     fillable = FALSE,
     
      nav_panel("Home",
