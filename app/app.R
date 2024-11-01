@@ -1,7 +1,6 @@
 ## SHINY LANDCOVER APP ##
 source('global.R')
 
-
 # Define UI  -----------------------------------------------------------
 ui <- page_navbar(
   

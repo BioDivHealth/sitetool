@@ -107,7 +107,6 @@ mapModuleServer <- function(id){
     observeEvent(input$selection_type, {
       mapvals$sites = NULL
     })
-  
     
     observeEvent(input$bbox_coords, {
       # get coords from output
@@ -183,10 +182,17 @@ mapModuleServer <- function(id){
       }
       
       if(input$selection_type == 'random'){
-
-        sites_filter = get_random_points(mapvals$bbox, 
+        points = get_random_points(mapvals$bbox, 
                                          as.numeric(input$num_sites), 
                                          input$dist_road)
+        
+        # turn into dataframe
+        sites_filter = data.frame(points)%>%
+          st_as_sf()%>%
+          dplyr::mutate(site = 1:length(points),
+                        site_id = paste0('random_', 1:length(points)),
+                        input_site = FALSE)
+        
       }
       
       if(!is.null(input_sites())){
