@@ -1,6 +1,6 @@
 # Helper Mapping Functions ----------------------------------------------------
 
-reset_map <- function(map, draw, bbox){
+reset_map <- function(map, draw){
   if(draw == 'TRUE'){
     map%>%
       clearShapes() %>%

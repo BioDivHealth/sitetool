@@ -11,27 +11,63 @@ plotUI <- function(id) {
                 label = tagList("Upload previously analyzed landcover data", tags$em("(optional):")),
                 accept = c(".csv")),
       h6('Select a measure to compare'),
-      selectInput(ns("measure"), "Measurement", "")
+      selectInput(ns("measure"), "Measurement", ""),
+      actionButton(ns("goStep3"), "Go"),
+      downloadButton(ns("saveFile"), "Save File")
     ),
     nav_panel(
       title = 'Comparison Plot',
       uiOutput(ns("compPlot"), inline = TRUE)
+    ),
+    nav_panel(
+      title='Dataset',
+      DT::dataTableOutput(ns("lcData"))
     )
   )
 }
 
 
 # Module Server
-plotServer <- function(id, indf = NULL) {
+plotServer <- function(id, sites = NULL) {
   moduleServer(id, function(input, output, session) {
 
     df <- reactiveVal(NULL)
     
     observeEvent(input$incsv, {
-      df(read.csv(input$incsv$datapath))
+      sites(read.csv(input$incsv$datapath))
     })
     
-    observe({df(indf())})
+    
+    
+    observeEvent(input$goStep3, {
+      withProgress(message = "Calculating landcover values", value = 0, {
+        if (input$product == 'NDVI') {
+          out_df <- createNDVIDataFrame(sites(), raster = r, type = input$product, dist = input$radius, progress = TRUE)
+        } else {
+          out_df <- createLCDataFrame(sites(), raster = r, dist = input$radius, progress = TRUE)
+        }
+        
+        sites_xy <- sites() %>%
+          mutate(longitude = sf::st_coordinates(.)[,1],
+                 latitude = sf::st_coordinates(.)[,2]) %>%
+          st_drop_geometry()
+        
+        # Add x and y of sites to dataframe
+        out_df <- out_df %>%
+          left_join(sites_xy)
+        
+        # Add product being used
+        out_df$product = input$product
+        
+      })
+      # Render the data table after processing is complete
+      output$lcData <- DT::renderDT({
+        out_df%>%
+          pivot_wider(names_from = c(cover, measure), values_from = value)
+      })
+      
+      df(out_df)
+    })
     
     observe({
       req(df())
@@ -66,6 +102,17 @@ plotServer <- function(id, indf = NULL) {
         )
       }) %>% tagList()
     })
+    
+    # Save File: Full dataset  -------------------------------------------------
+    output$saveFile <- downloadHandler(
+      filename = function() {
+        paste0("landcover_analyzer_export.csv")
+      },
+      content = function(file){
+        write.csv(df(), file, row.names = FALSE)
+      }
+    )
+    
   })
 }
 

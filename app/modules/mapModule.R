@@ -7,7 +7,7 @@ mapModuleUI <-  function(id){
        layout_sidebar(
          class="p-3 border border-top-0 rounded-bottom",
          sidebar = sidebar(
-           title = "Step 1. Generate a list of potential sites.",
+           title = "Step 1. Select a region of interest and landcover data.",
            width = 350,
            
            ## Input Type ## 
@@ -28,64 +28,24 @@ mapModuleUI <-  function(id){
              textOutput(ns("boundingBoxCoords")),
            ),
            
-           ## Site Type ##
-           selectInput(ns('selection_type'), h6('Please select a type of site:'), choices = c("random", "village")),
            
-           # Params for random type
+           checkboxInput(ns('upload'), 'Upload landcover data?', value = FALSE),
+           
            conditionalPanel(
              ns=NS(id),
-             condition = "input.selection_type == 'random'",
-             fluidRow(
-               column(4, tags$label("Number of sites:")),
-               column(8, textInput(ns('num_sites'), label = NULL, value = 100, placeholder = "Enter number of sites"))
-             ),
-             fluidRow(
-               column(4, tags$label("Distance from city (km)")),
-               column(8, sliderInput(ns('dist_city'),  label = NULL, min = 0, max = 10, value = 5))
-             )
-            ),
-           
-           # Params for village type
-           conditionalPanel(
-             ns=NS(id),
-             condition = "input.selection_type == 'village'",
-             fluidRow(
-               column(4, tags$label('Number of Potential Sites:')),
-               column(8, textOutput(ns("siteCount")))
-             ),
-             fluidRow(
-               column(4, tags$label("City population limit (thousands)")),
-               column(8, sliderInput(ns('city_pop'), label = NULL, min = 0, max = 1000, value = 10))
-             )
-            ),
-             
-            # Params for both
-           fluidRow(
-             column(4, tags$label("Distance from main road (m)")),
-             column(8, sliderInput(ns('dist_road'), label = NULL, min = 0, max = 2000, value = 500))
-           ),
-
-           
-           ## Input Sites ## 
-           radioButtons(ns('input_sites'), h6('Input Sites'),
-                        choices = c("None" = "none", 
-                                    "Upload a CSV" = "csv"
-                                   # "Select on map" = "map"
-                                    )),
-           conditionalPanel(
-             ns = NS(id),
-             condition = "input.input_sites == 'csv'",
-             fileInput(ns("csvfile"), 
-                       label = h6("Upload a CSV of potential sites:"),
-                       accept = c(".csv"))
+             condition = "input.upload",
+             fileInput(ns("rastfile"), h6("Upload a GeoTIFF covering your region of interest:"), accept = c("tif", ".tiff")),
            ),
            
-           actionButton(ns("goStep1"), "Go"),
+           selectInput(ns('product'),
+                       'Landcover Product:',
+                       choices = c('Copernicus Global Land Cover')),
+           
+           actionButton(ns("goStep1"), "Go")
          ),
-         
-         core_mapping_module_ui(ns("siteMap"))
-     )
-  )
+         core_mapping_module_ui(ns('lcMap')) 
+        )
+      )
 }
 
 
@@ -97,22 +57,19 @@ mapModuleServer <- function(id){
     # Reactive values  ---------------------------------------------------------
     sites <- reactiveVal(NULL)
     input_sites <- reactiveVal(NULL)
-    mapvals <- reactiveValues(bbox=NULL, draw=FALSE, sites=NULL)
+    mapvals <- reactiveValues(bbox=NULL, draw=FALSE, raster=NULL)
     
-    core_mapping_module_server("siteMap", mapvals)
+    # Base Map
+    core_mapping_module_server("lcMap", mapvals)
     
-    # Get ROI --------- --------------------------------------------------------
+    # Clear map items with change of input
     observeEvent(input$map_draw, {
-      # clear current bbox
       mapvals$bbox = NULL
-      mapvals$sites = NULL
+      mapvals$raster = NULL
       mapvals$draw = input$map_draw
     })
     
-    observeEvent(input$selection_type, {
-      mapvals$sites = NULL
-    })
-    
+    # Get ROI --------- --------------------------------------------------------
     observeEvent(input$bbox_coords, {
       # get coords from output
       if(input$map_draw == 'FALSE') {
@@ -134,88 +91,45 @@ mapModuleServer <- function(id){
       paste(mapvals$bbox, collapse=', ')
     })
 
-    # # Output number of potential sites (including input sites)
-     output$siteCount <- renderText({
-       nrow(sites())
-     })
     
-    
-    # Check uploaded data ------------------------------------------------------
-    
-    observeEvent(input$csvfile, {
-      req(input$csvfile)
-      tryCatch({
-        uploaded_data = read.csv(input$csvfile$datapath)
+     # TODO: Reactivity for raster type ----------------------------------------
+     
+     observeEvent(input$goStep1, {
+       bbox = mapvals$bbox
+       bbox_sf = st_as_sfc(st_bbox(c(xmin=bbox[1], ymin=bbox[2], xmax=bbox[3], ymax=bbox[4]), 
+                                   crs=st_crs(4326)))%>%
+         st_as_sf()%>%
+         st_buffer(0.5)
+       
+       
+       # Load raster:
+       if (input$upload) {
+         r <- rast(input$rastfile$datapath)
+         r <- terra::crop(r, bbox_sf)
         
-        # Check if the uploaded data is a dataframe
-        if (!is.data.frame(uploaded_data)) {
-          stop("wrong file")
-        }
-        
-        # Check for correct columns
-        if (any(!c('site', 'longitude', 'latitude') %in% colnames(uploaded_data))){
-          stop("incorrect columns")
-        }
-        
-        input_sites(uploaded_data)
-      },  error = function(e) {
-        showNotification("Upload file is of incorrect type. Please upload a CSV with columns labeled site, longitude, and latitude.", type = "error")
-        return(NULL)
-      })
-    })
-    
-    
-    # Observe Step 1: Get points from map  ---------------------------------------
-    
-    observeEvent(input$goStep1, {
-      req(mapvals$bbox)
-      
-      # Download sites within the bounding box
-      if(input$selection_type == 'village'){
+         # Check that sites are within uploaded raster:
+         if (!(relate(ext(mapvals$bbox), ext(r), relation = 'within'))) {
+           showNotification("The uploaded raster and the bounding box do not overlap. Please ensure they cover the same region.", type = "error")
+           return(NULL)
+         }
+         
+         # Store raster for use
+         if (input$product != 'NDVI') {
+           levels(r) <- raster_cats %>% subset(product == input$product)
+         }
+       } else {
+         withProgress(message = 'Downloading landcover data', value = 0, {
 
-        sites_data <- opq(bbox = mapvals$bbox,
-                          timeout = 100) %>%
-          add_osm_feature(key = "place", value = c("city", "suburb", "village", "town", "hamlet")) %>%
-          osmdata_sf()
-
-        # Extract village points and clean the data
-        sites_filter <- sites_data$osm_points %>%
-          select(osm_id, name, geometry) %>%
-          rename(site_id = osm_id, site = name) %>%
-          mutate(input_site = FALSE)%>%
-          filter(!is.na(site))
-      }
-      
-      if(input$selection_type == 'random'){
-        points = get_random_points(mapvals$bbox, 
-                                         as.numeric(input$num_sites), 
-                                         input$dist_road)
-        
-        # turn into dataframe
-        sites_filter = data.frame(points)%>%
-          st_as_sf()%>%
-          dplyr::mutate(site = 1:length(points),
-                        site_id = paste0('random_', 1:length(points)),
-                        input_site = FALSE)
-        
-      }
-      
-      if(!is.null(input_sites())){
-        id = input_sites()
-        id$input_site= TRUE
-        id$site_id = paste0('input_',1:nrow(id))
-        id = st_as_sf(id, coords = c("longitude", "latitude"),
-                      crs = "epsg:4326")%>%
-          select(c(site, site_id, input_site))
-        
-        sites_filter = rbind(id, sites_filter)
-      }
-      
-      # store and return sites
-      mapvals$sites = sites_filter
-      sites(sites_filter)
+           
+           r <- cov_landuse(bbox_sf)
+           levels(r) <- raster_cats %>% subset(product == 'Copernicus Global Land Cover')
+         })
+         mapvals$raster = r
+       }
     })
-    return(reactive(sites())) 
+    list(
+      bbox = reactive(mapvals$bbox), 
+      lc_raster = reactive(mapvals$raster))
   })
 }
 

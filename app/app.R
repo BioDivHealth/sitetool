@@ -13,9 +13,9 @@ ui <- page_navbar(
     fillable = FALSE,
     
      nav_panel("Home",
-        mapModuleUI('mapInputs'),
+        mapModuleUI('raster'),
       
-        landcoverInput('lc'),
+        sitesUI('getSites'),
         
         plotUI('cplot')
     ),
@@ -33,18 +33,17 @@ server <- function(session, input, output) {
   
   output$about <- renderUI({includeMarkdown("about.md")}) 
   
+  # Get landcover data ---------------------------------------------------------
+  
+  mapData <- mapModuleServer("raster")
+  
   # Get input sites ------------------------------------------------------------
   
-  sites <- mapModuleServer("mapInputs")
-  
-  # Get landcover data ---------------------------------------------------------
-
-  df <- landcoverOutput("lc", sites)
-  
+  sites <- sitesServer("getSites", mapData$bbox, mapData$lc_raster)
   
   # Plot landcover data --------------------------------------------------------
   
-  plotServer("cplot", df)
+  #plotServer("cplot", sites, lc_raster)
 
   
 }
