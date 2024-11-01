@@ -13,12 +13,12 @@ landcoverInput <-  function(id){
       
       width = 350, 
 
-      checkboxInput(ns('upload'), 'Upload your own data?', value = FALSE),
+      checkboxInput(ns('upload'), 'Upload landcover data?', value = FALSE),
       
       conditionalPanel(
         ns=NS(id),
-        condition = "input.upload == true",
-        fileInput(ns("rastfile"), "Upload a GeoTIFF covering the above area:", accept = c("tif", ".tiff")),
+        condition = "input.upload",
+        fileInput(ns("rastfile"), h6("Upload a GeoTIFF covering your region of interest:"), accept = c("tif", ".tiff")),
       ),
       
       selectInput(ns('product'),
@@ -79,7 +79,7 @@ landcoverOutput <- function(id, sites){
         }
       } else {
         withProgress(message = 'Downloading landcover data', value = 0, {
-          r <- cov_landuse(sites())
+          r <- cov_landuse(st_buffer(sites(), dist=0.1))
           levels(r) <- raster_cats %>% subset(product == 'Copernicus Global Land Cover')
         })
         mapvals$raster = r

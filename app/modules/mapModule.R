@@ -38,40 +38,45 @@ mapModuleUI <-  function(id){
              fluidRow(
                column(4, tags$label("Number of sites:")),
                column(8, textInput(ns('num_sites'), label = NULL, value = 100, placeholder = "Enter number of sites"))
-             )),
-           fluidRow(
-             column(4, tags$label("Distance from main road (m)")),
-             column(8, sliderInput(ns('dist_road'), label = NULL, min = 0, max = 2000, value = 500, step = 200))
-           ),
-           fluidRow(
-             column(4, tags$label("Distance from city (km)")),
-             column(8, sliderInput(ns('dist_city'),  label = NULL, min = 0, max = 10, value = 5))
-           ),
+             ),
+             fluidRow(
+               column(4, tags$label("Distance from city (km)")),
+               column(8, sliderInput(ns('dist_city'),  label = NULL, min = 0, max = 10, value = 5))
+             )
+            ),
            
            # Params for village type
            conditionalPanel(
              ns=NS(id),
              condition = "input.selection_type == 'village'",
              fluidRow(
-               column(4, tags$label("City population limit (thousands)")),
-               column(8, sliderInput(ns('city_pop'), label = NULL, min = 0, max = 1000, value = 10))
-             ),
-             fluidRow(
                column(4, tags$label('Number of Potential Sites:')),
                column(8, textOutput(ns("siteCount")))
+             ),
+             fluidRow(
+               column(4, tags$label("City population limit (thousands)")),
+               column(8, sliderInput(ns('city_pop'), label = NULL, min = 0, max = 1000, value = 10))
              )
+            ),
              
+            # Params for both
+           fluidRow(
+             column(4, tags$label("Distance from main road (m)")),
+             column(8, sliderInput(ns('dist_road'), label = NULL, min = 0, max = 2000, value = 500))
            ),
+
            
            ## Input Sites ## 
            radioButtons(ns('input_sites'), h6('Input Sites'),
                         choices = c("None" = "none", 
-                                    "Upload a csv" = "csv", 
-                                    "Select on map" = "map")),
+                                    "Upload a CSV" = "csv"
+                                   # "Select on map" = "map"
+                                    )),
            conditionalPanel(
              ns = NS(id),
+             condition = "input.input_sites == 'csv'",
              fileInput(ns("csvfile"), 
-                       label = h6(tagList("Upload a CSV of potential sites ", tags$em("(optional):"))),
+                       label = h6("Upload a CSV of potential sites:"),
                        accept = c(".csv"))
            ),
            

@@ -87,7 +87,7 @@ get_random_points <- function(bbox, n_points, distance, crs=4326){
   foundPoints
 }
 
-# bbox = c(xmin=-86.595333, ymin=44.375409, xmax=-85.35171, ymax=44.84486)
+ bbox = c(xmin=-86.595333, ymin=44.375409, xmax=-85.35171, ymax=44.84486)
 # # # ontario
 # # bbox = c(xmin=-87.564125, ymin=46.612344, xmax=-81.477613, ymax=49.644599)
 # # bbox = c(xmin=-128.933916, ymin=38.862466, xmax=-120.113611, ymax=44.164863)
