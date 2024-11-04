@@ -87,7 +87,7 @@ sitesServer <- function(id, bbox, lc_raster){
     observe({mapvals$raster = lc_raster()
             mapvals$bbox = bbox()})
     
-    observeEvent(input$selection_type, {
+    observeEvent(list(input$selection_type, mapvals$bbox), {
       mapvals$sites = NULL
     })
     

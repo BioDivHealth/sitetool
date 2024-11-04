@@ -11,7 +11,8 @@ getCroppedArea <- function(place, dist=1000){
   place%>%
     vect()%>%
     buffer(width=dist)%>% 
-    st_as_sf()
+    st_as_sf()%>%
+    st_set_crs(4326)
 }
 
 # Finds the UTM zone based on longitude
@@ -36,6 +37,7 @@ calculatePatchMetrics <- function(raster_crop, cell_areas) {
   p = patches(s, directions = 8) 
   
   patch_areas = lapply(p, function(x){
+    print('i')
     z = zonal(cell_areas, x, sum)
     data.frame(layer = names(x),
                mean_patch_area = mean(z$area, na.rm=T)
@@ -49,41 +51,49 @@ calculatePatchMetrics <- function(raster_crop, cell_areas) {
 
 
 # Main Function: Create landcover dataframe ------------------------------------
-createLCDataFrame <- function(in_df, raster, dist, progress=F){
+createLCDataFrame <- function(in_df, r, dist, progress=F){
 
   ### Calculate landcover for each village based on radius ###
   df_list = lapply(seq(nrow(in_df)), function(i){
-
+    print(in_df$geometry[i])
+    print('where am i')
     # Crop land cover by dist radius from village
+    print(dist)
     area = getCroppedArea(in_df$geometry[i], dist)
-    raster_crop = crop(raster, area)
+    print(area)
+   # tryCatch(!is.null(crop(r,extent(rect))), error=function(e) return(FALSE)) 
     
-    # Get cell areas
-    cell_areas = cellSize(raster_crop)
-    
-    # Get total by layer
-    class_tot = zonal(cell_areas, raster_crop, sum, na.rm=TRUE)
-    
-    # Get patch area by layer
-    class_area = calculatePatchMetrics(raster_crop, cell_areas)
-    
-    # When only one landcover type
-    if(nrow(class_area) == 0){
-      class_area = data.frame(layer = NA, mean_patch_area = NA)
+    if(relate(ext(area), ext(r), relation = 'within')){
+      raster_crop = terra::crop(r, area)
+      print('getting stuck')
+      # Get cell areas
+      cell_areas = cellSize(raster_crop)
+      print('is it zonal')
+      # Get total by layer
+      class_tot = zonal(cell_areas, raster_crop, sum, na.rm=TRUE)
+      
+      print('is it patch metrics')
+      # Get patch area by layer
+      class_area = calculatePatchMetrics(raster_crop, cell_areas)
+      
+      # When only one landcover type
+      if(nrow(class_area) == 0){
+        class_area = data.frame(layer = NA, mean_patch_area = NA)
+      }
+      
+      # Combine into one dataframe
+      d_temp = cbind(class_tot, class_area)
+      d_temp$site = in_df$site[i]
+      d_temp$site_id = in_df$site_id[i]
+      d_temp$input_site = in_df$input_site[i]
+      if(progress){incProgress(1/nrow(in_df), detail = paste("Site number:", i))}
+      return(d_temp)
     }
-    
-    # Combine into one dataframe
-    d_temp = cbind(class_tot, class_area)
-    d_temp$site = in_df$site[i]
-    d_temp$site_id = in_df$site_id[i]
-    d_temp$input_site = in_df$input_site[i]
-    if(progress){incProgress(1/nrow(in_df), detail = paste("Site number:", i))}
-    return(d_temp)
   })
-
+  str(df_list)
   df = do.call(rbind, df_list)
 
-  
+  str(df)
   df = df%>%
     subset(!is.na(layer))%>%
     select(-c(layer))%>%
@@ -97,7 +107,7 @@ createLCDataFrame <- function(in_df, raster, dist, progress=F){
     ungroup()%>%
     unique()%>%
     pivot_longer(c(cover_total_area, mean_patch_area, proportion), names_to = 'measure', values_to = 'value')
-
+  str(df)
   return(df)
 }
 

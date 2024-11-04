@@ -5,13 +5,17 @@ plotUI <- function(id) {
   ns <- NS(id)
   navset_card_tab(
     sidebar = sidebar(
-      title = 'Step 3. Filter and compare sites.',
+      title = 'Step 3. Analyze landcover data and compare sites.',
       width = 350,
       fileInput(ns("incsv"), 
                 label = tagList("Upload previously analyzed landcover data", tags$em("(optional):")),
                 accept = c(".csv")),
-      h6('Select a measure to compare'),
-      selectInput(ns("measure"), "Measurement", ""),
+    #  h6('Select a measure to compare'),
+     # 
+      numericInput("radius", 
+                   "Enter distance from each site center to analyze landcover data (meters):", 
+                   value = 1000),
+    #selectInput(ns("measure"), "Measurement", ""),
       actionButton(ns("goStep3"), "Go"),
       downloadButton(ns("saveFile"), "Save File")
     ),
@@ -28,7 +32,7 @@ plotUI <- function(id) {
 
 
 # Module Server
-plotServer <- function(id, sites = NULL) {
+plotServer <- function(id, sites = NULL, lc_data = NULL, product) {
   moduleServer(id, function(input, output, session) {
 
     df <- reactiveVal(NULL)
@@ -36,28 +40,30 @@ plotServer <- function(id, sites = NULL) {
     observeEvent(input$incsv, {
       sites(read.csv(input$incsv$datapath))
     })
-    
-    
-    
+  
     observeEvent(input$goStep3, {
+      req(sites())
+      req(lc_data())
+
       withProgress(message = "Calculating landcover values", value = 0, {
-        if (input$product == 'NDVI') {
-          out_df <- createNDVIDataFrame(sites(), raster = r, type = input$product, dist = input$radius, progress = TRUE)
+        if (product() == 'NDVI') {
+          out_df <- createNDVIDataFrame(sites(), r = lc_data(), type = product(), dist = 1000, progress = TRUE)
         } else {
-          out_df <- createLCDataFrame(sites(), raster = r, dist = input$radius, progress = TRUE)
+          out_df <- createLCDataFrame(sites(), r = lc_data(), dist = 1000, progress = TRUE)
         }
-        
+        str(out_df)
         sites_xy <- sites() %>%
           mutate(longitude = sf::st_coordinates(.)[,1],
                  latitude = sf::st_coordinates(.)[,2]) %>%
           st_drop_geometry()
         
+        str(sites_xy)
         # Add x and y of sites to dataframe
         out_df <- out_df %>%
-          left_join(sites_xy)
-        
+          left_join(sites_xy, by=c('site_id'))
+        str(out_df)
         # Add product being used
-        out_df$product = input$product
+        out_df$product = product()
         
       })
       # Render the data table after processing is complete
@@ -65,18 +71,18 @@ plotServer <- function(id, sites = NULL) {
         out_df%>%
           pivot_wider(names_from = c(cover, measure), values_from = value)
       })
-      
+      str(out_df)
       df(out_df)
     })
     
-    observe({
-      req(df())
-      updateSelectInput(session, "measure", choices = unique(df()$measure), selected = 'proportion')
-    })
-    
+    # observe({
+    #   req(df())
+    #   updateSelectInput(session, "measure", choices = unique(df()$measure), selected = 'proportion')
+    # })
+    # 
     output$compPlot <- renderUI({
       req(df())
-      
+      print('IM TRYING TO MAKE A PLOT')
       # Organize dataframe for plotting
       d <- df() %>%
         left_join(raster_cats %>% 
@@ -96,7 +102,7 @@ plotServer <- function(id, sites = NULL) {
         cover_data <- d %>% filter(cover == cat)
         
         tagList(
-          renderGirafe({ generate_plot(cover_data, cat, input$measure) }),
+          renderGirafe({ generate_plot(cover_data, cat, 'proportion') }),
           HTML(generate_text(cover_data, cat)),
           hr()
         )

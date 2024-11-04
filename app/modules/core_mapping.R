@@ -123,7 +123,11 @@ core_mapping_module_server <- function(id, common) {
           reset_map(common$draw)
   
          if(!is.null(common$bbox)){
+           mn_lng = mean(common$bbox[1], common$bbox[3])
+           mn_lat = mean(common$bbox[2], common$bbox[4])
+           
            map%>%
+             setView(lng = mn_lng, lat = mn_lat, zoom = 8)%>%
              addRectangles(
                lng1 = common$bbox[1], lat1 = common$bbox[2],
                lng2 = common$bbox[3], lat2 = common$bbox[4],

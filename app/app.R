@@ -1,6 +1,7 @@
 ## SHINY LANDCOVER APP ##
 source('global.R')
 
+
 # Define UI  -----------------------------------------------------------
 ui <- page_navbar(
   
@@ -43,7 +44,7 @@ server <- function(session, input, output) {
   
   # Plot landcover data --------------------------------------------------------
   
-  #plotServer("cplot", sites, lc_raster)
+  plotServer("cplot", sites, mapData$lc_raster, mapData$product)
 
   
 }

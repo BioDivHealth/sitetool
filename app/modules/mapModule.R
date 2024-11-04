@@ -7,7 +7,7 @@ mapModuleUI <-  function(id){
        layout_sidebar(
          class="p-3 border border-top-0 rounded-bottom",
          sidebar = sidebar(
-           title = "Step 1. Select a region of interest and landcover data.",
+           title = "Step 1. Select a region of interest and input landcover data.",
            width = 350,
            
            ## Input Type ## 
@@ -37,9 +37,22 @@ mapModuleUI <-  function(id){
              fileInput(ns("rastfile"), h6("Upload a GeoTIFF covering your region of interest:"), accept = c("tif", ".tiff")),
            ),
            
-           selectInput(ns('product'),
-                       'Landcover Product:',
-                       choices = c('Copernicus Global Land Cover')),
+           conditionalPanel(
+             ns=NS(id),
+             condition = "input.upload",
+             selectInput(ns('product'),
+                         'Landcover Product:',
+                         choices = c('Copernicus Global Land Cover', 'ESA WorldCover',  'Dynamic World', 'NDVI'))
+           ),
+           
+           conditionalPanel(
+             ns=NS(id),
+             condition = "input.upload == 'FALSE'",
+             selectInput(ns('product'),
+                         'Landcover Product:',
+                         choices = c('Copernicus Global Land Cover'))
+           ),
+
            
            actionButton(ns("goStep1"), "Go")
          ),
@@ -69,6 +82,10 @@ mapModuleServer <- function(id){
       mapvals$draw = input$map_draw
     })
     
+    observeEvent(mapvals$bbox, {
+      mapvals$raster = NULL
+    })
+    
     # Get ROI --------- --------------------------------------------------------
     observeEvent(input$bbox_coords, {
       # get coords from output
@@ -90,46 +107,49 @@ mapModuleServer <- function(id){
     output$boundingBoxCoords <- renderText({
       paste(mapvals$bbox, collapse=', ')
     })
-
-    
-     # TODO: Reactivity for raster type ----------------------------------------
      
      observeEvent(input$goStep1, {
        bbox = mapvals$bbox
        bbox_sf = st_as_sfc(st_bbox(c(xmin=bbox[1], ymin=bbox[2], xmax=bbox[3], ymax=bbox[4]), 
                                    crs=st_crs(4326)))%>%
          st_as_sf()%>%
-         st_buffer(0.5)
+         st_buffer(2)
        
        
        # Load raster:
        if (input$upload) {
-         r <- rast(input$rastfile$datapath)
-         r <- terra::crop(r, bbox_sf)
-        
-         # Check that sites are within uploaded raster:
-         if (!(relate(ext(mapvals$bbox), ext(r), relation = 'within'))) {
-           showNotification("The uploaded raster and the bounding box do not overlap. Please ensure they cover the same region.", type = "error")
-           return(NULL)
-         }
-         
-         # Store raster for use
-         if (input$product != 'NDVI') {
-           levels(r) <- raster_cats %>% subset(product == input$product)
-         }
+         withProgress(message = 'Uploading raster', value = 0, {
+           r <- rast(input$rastfile$datapath)
+           
+           # Check that sites are within uploaded raster:
+           if (!(relate(ext(bbox_sf), ext(r), relation = 'within'))) {
+             showNotification("The uploaded raster and the bounding box do not overlap. Please ensure they cover the same region.", type = "error")
+             return(NULL)
+           }
+           
+           r <- terra::crop(r, bbox_sf)
+           
+           # Store raster for use
+           if (input$product != 'NDVI') {
+             levels(r) <- raster_cats %>% subset(product == input$product)
+           }
+         })
+
        } else {
          withProgress(message = 'Downloading landcover data', value = 0, {
-
-           
            r <- cov_landuse(bbox_sf)
            levels(r) <- raster_cats %>% subset(product == 'Copernicus Global Land Cover')
          })
-         mapvals$raster = r
        }
+      mapvals$raster = r
     })
+     
+     # Return Items
     list(
       bbox = reactive(mapvals$bbox), 
-      lc_raster = reactive(mapvals$raster))
+      lc_raster = reactive(mapvals$raster),
+      product = reactive(input$product)
+    )
   })
 }
 
