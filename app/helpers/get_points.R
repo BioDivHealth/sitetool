@@ -32,29 +32,46 @@ get_land_area <- function(bbox){
   }
 }
 
-get_roads <- function(bbox, crs=4326){
-  print('back on the road again')
-  roads_query <- opq(bbox = bbox) %>%
-    add_osm_feature(key = "highway",
-                    value = c("motorway", "primary", "secondary", "tertiary", "residential"))
-  roads <- osmdata_sf(roads_query)$osm_lines%>%st_set_crs(crs)
-
-  if (is.null(roads)) {
-    roads<- st_sf(geometry = st_sfc())  # Create empty spatial object
-  }
-
-  roads
+get_roads <- function(bbox, crs = 4326) {
+  # Error handling for OSM timeout
+  # create empty object in case times out returns NULL
+  roads <- st_sf(geometry = st_sfc())
+  tryCatch({
+    roads_query <- opq(bbox = bbox) %>%
+      add_osm_feature(key = "highway",
+                      value = c("motorway", "primary", "secondary", "tertiary", "residential"))
+    
+    roads <- osmdata_sf(roads_query)$osm_lines %>% st_set_crs(crs)
+    
+    # Check if the result is NULL and return an empty spatial object if so
+    if (is.null(roads)) {
+      message("No roads data returned; returning empty spatial object.")
+      roads <- st_sf(geometry = st_sfc())  # Create empty spatial object
+    }
+    
+  }, error = function(e) {
+    message("Overpass query timed out when retrieving road data.")
+    
+  })
+  return(roads)
 }
 
 get_cities <- function(bbox, crs=4326){
-  cities_query <- opq(bbox = bbox) %>%
-    add_osm_feature(key = "place", 
-                    value = c("city", "borough", "suburb", "quarter", "village", "town", "hamlet"))
-  cities <- osmdata_sf(cities_query)$osm_points%>%st_set_crs(crs)
-  if (is.null(ciies)) {
-    cities <- st_sf(geometry = st_sfc())  # Create empty spatial object
-  }
-  cities
+  tryCatch({
+      cities_query <- opq(bbox = bbox) %>%
+        add_osm_feature(key = "place", 
+                        value = c("city", "borough", "suburb", "quarter", "village", "town", "hamlet"))
+      
+      cities <- osmdata_sf(cities_query)$osm_points%>%st_set_crs(crs)
+      
+      if (is.null(ciies)) {
+        cities <- st_sf(geometry = st_sfc())  # Create empty spatial object
+      }
+    }, error = function(e){
+      message("Overpass query timed out when retrieving city data.")
+    })
+
+  return(cities)
 }
 
 check_distance <- function(points, sf, distance){
@@ -64,24 +81,32 @@ check_distance <- function(points, sf, distance){
 
 
 get_random_points <- function(bbox, n_points, distance, crs=4326){
+  # Create a Progress object
+  progress <- shiny::Progress$new()
+  # Make sure it closes when we exit this reactive, even if there's an error
+  on.exit(progress$close())
+  
+  progress$set(message = "Finding points", value = 0)
+  
   foundPoints = st_sfc(crs = st_crs(crs))
   
+  progress$inc(1/4)
   roads = get_roads(bbox)
-  
   bbox_sf = st_as_sfc(st_bbox(c(xmin=bbox[1], ymin=bbox[2], xmax=bbox[3], ymax=bbox[4]), crs=st_crs(crs)))
-  print('getting land')
+  
+  progress$inc(1/4)
   land = get_land_area(bbox_sf)
-  print('finding points')
+  progress$inc(1/4)
+  
   while(length(foundPoints) < n_points){
     # sample more than needed to speed up processing
     points = st_sample(land, n_points*5) 
     points = check_distance(points, roads, 50)
     foundPoints = c(foundPoints, points)
   }
-
+  progress$inc(1/4)
   # if more than needed
   if(length(foundPoints) > n_points){
-    print('here2')
     foundPoints = foundPoints[sample(1:length(foundPoints), n_points)]
   }
   foundPoints

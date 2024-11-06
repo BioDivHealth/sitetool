@@ -37,7 +37,7 @@ calculatePatchMetrics <- function(raster_crop, cell_areas) {
   p = patches(s, directions = 8) 
   
   patch_areas = lapply(p, function(x){
-    print('i')
+
     z = zonal(cell_areas, x, sum)
     data.frame(layer = names(x),
                mean_patch_area = mean(z$area, na.rm=T)
@@ -55,24 +55,19 @@ createLCDataFrame <- function(in_df, r, dist, progress=F){
 
   ### Calculate landcover for each village based on radius ###
   df_list = lapply(seq(nrow(in_df)), function(i){
-    print(in_df$geometry[i])
-    print('where am i')
+
     # Crop land cover by dist radius from village
-    print(dist)
     area = getCroppedArea(in_df$geometry[i], dist)
-    print(area)
    # tryCatch(!is.null(crop(r,extent(rect))), error=function(e) return(FALSE)) 
     
     if(relate(ext(area), ext(r), relation = 'within')){
       raster_crop = terra::crop(r, area)
-      print('getting stuck')
       # Get cell areas
       cell_areas = cellSize(raster_crop)
-      print('is it zonal')
       # Get total by layer
       class_tot = zonal(cell_areas, raster_crop, sum, na.rm=TRUE)
       
-      print('is it patch metrics')
+
       # Get patch area by layer
       class_area = calculatePatchMetrics(raster_crop, cell_areas)
       
@@ -90,10 +85,8 @@ createLCDataFrame <- function(in_df, r, dist, progress=F){
       return(d_temp)
     }
   })
-  str(df_list)
   df = do.call(rbind, df_list)
 
-  str(df)
   df = df%>%
     subset(!is.na(layer))%>%
     select(-c(layer))%>%
@@ -107,7 +100,7 @@ createLCDataFrame <- function(in_df, r, dist, progress=F){
     ungroup()%>%
     unique()%>%
     pivot_longer(c(cover_total_area, mean_patch_area, proportion), names_to = 'measure', values_to = 'value')
-  str(df)
+
   return(df)
 }
 

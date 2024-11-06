@@ -1,4 +1,5 @@
 # Helper Mapping Functions ----------------------------------------------------
+max_raster_size <- 4194304  # 4 MB
 
 reset_map <- function(map, draw){
   if(draw == 'TRUE'){
@@ -59,11 +60,23 @@ draw_sf <- function(map, sf_obj) {
 }
 
 add_raster <- function(map, r){
- # pal <- colorFactor(topo.colors(nlevels(r)), levels(r))
-  
+
+  # Calculate the raster size in bytes
+  raster_size <- ncell(r) * nlyr(r) * 8  # assuming 8 bytes per cell for double precision
+  r_plot = r
+  # Check if raster size exceeds the maximum allowed size
+  if (raster_size > max_raster_size) {
+    # Calculate downscale factor to reduce raster size below the limit
+    downscale_factor <- ceiling(sqrt(raster_size / max_raster_size))
+
+    # Downscale raster by the calculated factor
+    r_plot <- aggregate(r_plot, fact = downscale_factor, fun = 'modal', na.rm = TRUE)
+
+  }
+
   map <- map %>%
     clearImages() %>%  # Clear any previous raster
-    addRasterImage(r, opacity = 0.8) %>%
+    addRasterImage(r_plot, opacity = 0.8) %>%
     addRasterLegend(r, opacity = 0.8)
 }
 
@@ -127,7 +140,7 @@ core_mapping_module_server <- function(id, common) {
            mn_lat = mean(common$bbox[2], common$bbox[4])
            
            map%>%
-             setView(lng = mn_lng, lat = mn_lat, zoom = 8)%>%
+             setView(lng = mn_lng, lat = mn_lat, zoom = 6)%>%
              addRectangles(
                lng1 = common$bbox[1], lat1 = common$bbox[2],
                lng2 = common$bbox[3], lat2 = common$bbox[4],
@@ -148,20 +161,5 @@ core_mapping_module_server <- function(id, common) {
   
     })
   }
-
-
-
-draw_bbox <- function(map, bbox) {
-  map <- map %>%
-      reset_map(draw=F)%>%
-      addRectangles(
-        lng1 = bbox[1], lat1 = bbox[2],
-        lng2 = bbox[3], lat2 = bbox[4],
-        color = "#5365FF", fillOpacity = 0.2
-      )
-      
-}
-
-
 
 

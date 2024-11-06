@@ -7,7 +7,7 @@ mapModuleUI <-  function(id){
        layout_sidebar(
          class="p-3 border border-top-0 rounded-bottom",
          sidebar = sidebar(
-           title = "Step 1. Select a region of interest and input landcover data.",
+           title = "Step 1. Select a region of interest and landcover data source.",
            width = 350,
            
            ## Input Type ## 
@@ -28,18 +28,14 @@ mapModuleUI <-  function(id){
              textOutput(ns("boundingBoxCoords")),
            ),
            
-           
-           checkboxInput(ns('upload'), 'Upload landcover data?', value = FALSE),
+           ## Input Type ## 
+           radioButtons(ns('upload'), h6('Please select a raster data source:'),
+                        choices = c("Default" = FALSE, "Upload a file" = TRUE)),
            
            conditionalPanel(
              ns=NS(id),
-             condition = "input.upload",
+             condition = "input.upload == 'TRUE'",
              fileInput(ns("rastfile"), h6("Upload a GeoTIFF covering your region of interest:"), accept = c("tif", ".tiff")),
-           ),
-           
-           conditionalPanel(
-             ns=NS(id),
-             condition = "input.upload",
              selectInput(ns('product'),
                          'Landcover Product:',
                          choices = c('Copernicus Global Land Cover', 'ESA WorldCover',  'Dynamic World', 'NDVI'))
@@ -54,7 +50,8 @@ mapModuleUI <-  function(id){
            ),
 
            
-           actionButton(ns("goStep1"), "Go")
+           actionButton(ns("goStep1"), "Go"),
+           downloadButton(ns("saveFile"), "Save Raster")
          ),
          core_mapping_module_ui(ns('lcMap')) 
         )
@@ -131,18 +128,30 @@ mapModuleServer <- function(id){
            
            # Store raster for use
            if (input$product != 'NDVI') {
-             levels(r) <- raster_cats %>% subset(product == input$product)
+             levels(r) <- raster_cats%>%subset(product == input$product)%>%select(c(value, subcover))
            }
          })
 
        } else {
          withProgress(message = 'Downloading landcover data', value = 0, {
            r <- cov_landuse(bbox_sf)
-           levels(r) <- raster_cats %>% subset(product == 'Copernicus Global Land Cover')
+           
+           mapvals$raster = r
+           
+           levels(r) <- raster_cats%>%subset(product == input$product)%>%select(c(value, subcover))
          })
        }
       mapvals$raster = r
     })
+     
+     output$saveFile <- downloadHandler(
+       filename = function() {
+         paste0("landcover_raster.tif")
+       },
+       content = function(file){
+         writeRaster(mapvals$raster, file, overwrite=T)
+       }
+     )
      
      # Return Items
     list(

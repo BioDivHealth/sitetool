@@ -23,7 +23,7 @@ sitesUI <-  function(id){
           ),
           fluidRow(
             column(4, tags$label("Distance from city (km)")),
-            column(8, sliderInput(ns('dist_city'),  label = NULL, min = 0, max = 10, value = 5))
+            column(8, sliderInput(ns('dist_city'),  label = NULL, min = 0, max = 10, value = 0))
           )
         ),
         
@@ -36,15 +36,15 @@ sitesUI <-  function(id){
             column(8, textOutput(ns("siteCount")))
           ),
           fluidRow(
-            column(4, tags$label("City population limit (thousands)")),
-            column(8, sliderInput(ns('city_pop'), label = NULL, min = 0, max = 1000, value = 10))
+            column(4, tags$label("Max city population (thousands)")),
+            column(8, sliderInput(ns('city_pop'), label = NULL, min = 0, max = 1000, value = 0))
           )
         ),
         
         # Params for both
         fluidRow(
           column(4, tags$label("Distance from main road (m)")),
-          column(8, sliderInput(ns('dist_road'), label = NULL, min = 0, max = 2000, value = 500))
+          column(8, sliderInput(ns('dist_road'), label = NULL, min = 0, max = 2000, value = 0))
         ),
         
         
@@ -61,7 +61,8 @@ sitesUI <-  function(id){
                     label = h6("Upload a CSV of potential sites:"),
                     accept = c(".csv"))
         ),
-        actionButton(ns("goStep2"), "Go") 
+        actionButton(ns("goStep2"), "Go"),
+        downloadButton(ns("saveFile"), "Save List of Sites")
       ),
       nav_panel(
         title = 'Site Map',
@@ -120,6 +121,19 @@ sitesServer <- function(id, bbox, lc_raster){
       })
     })
     
+    output$saveFile <- downloadHandler(
+      filename = function() {
+        paste0("site_list.csv")
+      },
+      content = function(file){
+        outfile = sites()%>%
+          mutate(longitude = sf::st_coordinates(.)[,1],
+               latitude = sf::st_coordinates(.)[,2]) %>%
+          st_drop_geometry()
+        
+        write.csv(outfile, file, row.names = F)
+      }
+    )
 
     # Step 2: Caculate landcover values ----------------------------------------
     observeEvent(input$goStep2, {

@@ -2,6 +2,7 @@
 source('global.R')
 
 
+
 # Define UI  -----------------------------------------------------------
 ui <- page_navbar(
   
@@ -9,7 +10,6 @@ ui <- page_navbar(
                   style={'padding-left:15px'}),
 
     theme = bs_theme(preset='pulse'),
-    
     
     fillable = FALSE,
     
