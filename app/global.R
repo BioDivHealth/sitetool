@@ -12,9 +12,9 @@ source('helpers/CalculateLandCover.R')
 source('helpers/report_stats.R')
 source('helpers/get_landuse_data.R')
 source('helpers/get_points.R')
-source('modules/mapModule.R')
-source('modules/landcoverModule.R')
-source('modules/plotModule.R')
+source('modules/step1.R')
+source('modules/step2.R')
+source('modules/step3.R')
 source('modules/core_mapping.R')
 
 # Global vars and options  ----------------------------------------------------

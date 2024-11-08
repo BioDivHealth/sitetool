@@ -30,7 +30,7 @@ generate_text <- function(data, cat) {
       "<b><span style='color:", p_value_color, "'>", bias_result,  "</span></b>",
       " show sampling bias relative to the rest of the dataset (Mann-Whitney Test: p-value = ",
       "<span style='color:", p_value_color, "'>", format(mw_test$p.value, digits=2), "</span>.",
-      " The range for the input sites is <span style='color:blue'>", 
+      "). The range for the input sites is <span style='color:blue'>", 
       paste(input_range, collapse = '-'), "</span>",
       " and the range for the rest of the dataset is <span style='color:blue'>", 
       paste(rest_range, collapse = '-'), "</span>.",
@@ -48,6 +48,7 @@ generate_text <- function(data, cat) {
 
 # Function to generate interactive plots for each cover
 generate_plot <- function(data, cat, measure) {
+  
   # Create the ggplot object
   p <- ggplot() +
     ggdist::stat_halfeye(
@@ -83,20 +84,20 @@ generate_plot <- function(data, cat, measure) {
          title = paste(stringr::str_to_title(cat), measure)) +
     theme_minimal() +
     theme(legend.position = 'none', 
-          plot.title = element_text(face = "bold", hjust=0.5),
-          plot.margin = margin(t = 0,  # Top margin
-                               r = 0,  # Right margin
-                               b = 0,  # Bottom margin
-                               l = -5)) # Left margin 
-  
+          plot.title = element_text(face = "bold", hjust=0.5))
+          # plot.margin = margin(t = 0,  # Top margin
+          #                      r = 0,  # Right margin
+          #                      b = 0,  # Bottom margin
+          #                      l = -5)) # Left margin 
+          # 
   
   # # Interactive portion using girafe
   girafe(
     ggobj = p,
     options = list(
-      width_svg = 4,
-      height_svg = 2,
-      opts_sizing(rescale = TRUE, width=0.1),
+   #   width_svg = 4,
+    #  height_svg = 2,
+    #  opts_sizing(rescale = FALSE, width=0.1),
       opts_hover(css = "fill-opacity:1;fill:yellow;cursor:pointer;"),
       opts_selection(type = "single")
     )

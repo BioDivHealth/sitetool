@@ -87,21 +87,23 @@ cov_landuse <- function(shape, async = FALSE) {
   tryCatch({
     raster_tiles <- NULL
     i = 1
+    n_steps <- length(tiles) + 3
+    
     for (t in tiles$url){
-      incProgress(1/length(tiles)+4, detail = paste("Getting tiles:", i))
+      incProgress(1/n_steps, detail = paste("Getting tiles:", i))
       url = glue::glue('https://s3-eu-west-1.amazonaws.com/vito.landcover.global/v3.0.1/2015/{t}_PROBAV_LC100_global_v3.0.1_2015-base_Discrete-Classification-map_EPSG-4326.tif')
       ras <- terra::rast(url)
       if (is.null(raster_tiles)){
         raster_tiles <- ras
 
       } else {
-        incProgress(1/length(tiles)+4, detail='Merging tiles')
+        incProgress(1/n_steps, detail='Merging tiles')
         raster_tiles <- terra::merge(raster_tiles, ras)
       }
       i=i+1
     }
       #tile_name <- paste0(l," land use")
-      incProgress(1/length(tiles)+4, detail='Croppng raster')
+      incProgress(1/n_steps, detail='Croppng raster')
       raster_tiles <- terra::crop(raster_tiles, shape)
       #raster_tiles <- terra::aggregate(raster_tiles, fact = 10, fun = "mean")
       #raster_layers[[tile_name]] <- raster_tiles

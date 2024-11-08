@@ -93,12 +93,12 @@ createLCDataFrame <- function(in_df, r, dist, progress=F){
     group_by(site_id)%>%
     mutate(total_area = sum(area))%>%
     group_by(site_id, cover)%>%
-    summarise(
+    reframe(
            mean_patch_area =  mean(mean_patch_area),
            cover_total_area = sum(area),
            proportion = sum(area)/total_area)%>%
     ungroup()%>%
-    unique()%>%
+    distinct()%>%
     pivot_longer(c(cover_total_area, mean_patch_area, proportion), names_to = 'measure', values_to = 'value')
 
   return(df)

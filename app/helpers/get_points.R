@@ -19,11 +19,11 @@ get_land_area <- function(bbox){
   crop_lakes = st_crop(st_geometry(st_make_valid(lake_boundaries)), bbox) 
   
   if (length(crop_lakes) == 0 & length(crop_land) == 0) {
-    print('also here')
+
     return(bbox)  
   }
   else if (length(crop_lakes) == 0 ){
-    print('here')
+
     return(crop_land)
   }
   else
@@ -33,11 +33,11 @@ get_land_area <- function(bbox){
 }
 
 get_roads <- function(bbox, crs = 4326) {
-  # Error handling for OSM timeout
-  # create empty object in case times out returns NULL
+
   roads <- st_sf(geometry = st_sfc())
   tryCatch({
-    roads_query <- opq(bbox = bbox) %>%
+    roads_query <- opq(bbox = bbox,
+                       timeout = 60) %>%
       add_osm_feature(key = "highway",
                       value = c("motorway", "primary", "secondary", "tertiary", "residential"))
     
@@ -58,14 +58,15 @@ get_roads <- function(bbox, crs = 4326) {
 
 get_cities <- function(bbox, crs=4326){
   tryCatch({
-      cities_query <- opq(bbox = bbox) %>%
+      cities_query <- opq(bbox = bbox,
+                          timeout = 1000) %>%
         add_osm_feature(key = "place", 
                         value = c("city", "borough", "suburb", "quarter", "village", "town", "hamlet"))
       
       cities <- osmdata_sf(cities_query)$osm_points%>%st_set_crs(crs)
       
       if (is.null(ciies)) {
-        cities <- st_sf(geometry = st_sfc())  # Create empty spatial object
+        cities <- st_sf(geometry = st_sfc())  
       }
     }, error = function(e){
       message("Overpass query timed out when retrieving city data.")
@@ -80,28 +81,43 @@ check_distance <- function(points, sf, distance){
 }
 
 
-get_random_points <- function(bbox, n_points, distance, crs=4326){
+get_random_points <- function(bbox, n_points, road_dist=0, city_dist=0, crs=4326){
   # Create a Progress object
   progress <- shiny::Progress$new()
   # Make sure it closes when we exit this reactive, even if there's an error
   on.exit(progress$close())
   
-  progress$set(message = "Finding points", value = 0)
+  progress$set(message = "Finding random points", value = 0)
   
   foundPoints = st_sfc(crs = st_crs(crs))
   
-  progress$inc(1/4)
-  roads = get_roads(bbox)
+  if(road_dist > 0){
+    progress$inc(detail = 'Getting road data', 1/5)
+    roads = get_roads(bbox)
+  }
+  
+  if(city_dist > 0){
+    progress$inc(detail = 'Getting city data', 1/5)
+    cities = get_cities(bbox)
+  }
+    
+  progress$inc(detail= 'Getting land area', 1/5)
   bbox_sf = st_as_sfc(st_bbox(c(xmin=bbox[1], ymin=bbox[2], xmax=bbox[3], ymax=bbox[4]), crs=st_crs(crs)))
-  
-  progress$inc(1/4)
   land = get_land_area(bbox_sf)
-  progress$inc(1/4)
   
+  progress$inc(detail= 'Sampling area', 1/5)
   while(length(foundPoints) < n_points){
     # sample more than needed to speed up processing
     points = st_sample(land, n_points*5) 
-    points = check_distance(points, roads, 50)
+    
+    if(road_dist > 0){
+        points = check_distance(points, roads, road_dist)
+    }
+    
+    if(city_dist > 0){
+      points = check_distance(points, cities, city_dist)
+    }
+    
     foundPoints = c(foundPoints, points)
   }
   progress$inc(1/4)
@@ -112,31 +128,35 @@ get_random_points <- function(bbox, n_points, distance, crs=4326){
   foundPoints
 }
 
-# bbox = c(xmin=-86.595333, ymin=44.375409, xmax=-85.35171, ymax=44.84486)
-# # # ontario
-# # bbox = c(xmin=-87.564125, ymin=46.612344, xmax=-81.477613, ymax=49.644599)
-# # bbox = c(xmin=-128.933916, ymin=38.862466, xmax=-120.113611, ymax=44.164863)
-# # bbox = c(-85.104078, 41.145817, -84.695181, 41.324443)
-# # 
-# # # brazil
-# # bbox = c(xmin=-53.109884, ymin=-1.978104, xmax=-46.63825, ymax=3.275872)
-# # 
-# # # # bbox = c(xmin = -85.104078, ymin = 41.145817, xmax = -84.695181, ymax = 41.324443)
-# # 
-# # 
-# # # Shapefiles for cropping and getting points
-# bbox = c(-7.411394, 37.852734, -6.04438999999999, 38.795762)
-# land_boundaries = st_read('ss-analyzer/app/data/ne_50m_land/ne_50m_land.shp')
-# lake_boundaries = st_read('ss-analyzer/app/data/ne_50m_lakes/ne_50m_lakes.shp')
-# 
-# # 
-# points = get_random_points(bbox, 10, 10)
-# p = data.frame(points)%>%
-#   st_as_sf()%>%
-#   dplyr::mutate(site = 1:length(points),
-#          site_id = paste0('random_', 1:length(points)),
-#          input_site = FALSE)
-# 
-
-#  # spain
-# 
+get_village_points <- function(bbox, max_pop=1e8, crs=4326){
+  progress <- shiny::Progress$new()
+  on.exit(progress$close())
+  
+  progress$set(message = "Obtaining village data", value = 0)
+  sites = opq(bbox = bbox,
+              timeout = 200)%>%
+    add_osm_feature(key = 'place', 
+                    value = c("city", "suburb", "village", "town", "hamlet"))%>%
+    osmdata_sf()
+  
+  progress$inc(1/2)
+  bbox_sf = st_as_sfc(st_bbox(c(xmin=bbox[1], ymin=bbox[2], xmax=bbox[3], ymax=bbox[4]), crs=st_crs(crs)))
+  
+  if (!is.null(sites$osm_points)) {
+    sites <- sites$osm_points %>%
+      st_set_crs(crs)%>%
+      mutate(population = as.numeric(population))%>%
+      filter(is.na(population) | population < max_pop)%>%
+      select(osm_id, name, geometry) %>%
+      rename(site_id = osm_id, site = name) %>%
+      mutate(input_site = FALSE)%>%
+      st_filter(bbox_sf)%>%
+      filter(!is.na(site))
+      
+    
+  } else {
+    showNotification('No sites found. Please select another location or site type.')
+    sites = NULL
+  }
+  
+}
