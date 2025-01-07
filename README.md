@@ -34,7 +34,7 @@ You can install the current development version of `{ssanalyzer}` by
 typing the following in an R window:
 
 ``` r
-devtools::install_github('https://github.com/nimirz/ssanalyzer')
+devtools::install_github('https://github.com/BioDivHealth/ss-analyzer')
 ```
 
 ## Usage
