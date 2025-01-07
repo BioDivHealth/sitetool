@@ -1,0 +1,17 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^data-raw$
+dev_history.R
+^dev$
+$run_dev.*
+^.here$
+^CODE_OF_CONDUCT\.md$
+^LICENSE\.md$
+^README\.Rmd$
+^doc$
+^Meta$
+^\.github$
+^codecov\.yml$
+^app\.R$
+^rsconnect$
+^\.rscignore$

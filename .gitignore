@@ -1,4 +1,9 @@
-.DS_Store
-*/.Rhistory
-*/.RData
 .Rproj.user
+inst/doc
+.Rhistory
+.Rdata
+.httr-oauth
+.DS_Store
+.quarto
+/doc/
+/Meta/

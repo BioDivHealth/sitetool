@@ -1,0 +1,96 @@
+---
+title: "Site Selection Landcover Analyzer"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ssanalyzer}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+## Overview
+The Site Selection Landcover Analyzer is an R package which launches an interactive R Shiny interface to assist with analyzing and selecting sites for field studies. The package also contains functions for analyzing spatial data outside of the interactive environment. 
+
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Interactive Version
+
+The main component of the package is an Shiny interface that goes through the procedure of site selection step-by-step. To launch the interactive tool, execute the following commands:
+
+```{r setup, eval=FALSE}
+library(ssanalyzer)
+run_app()
+```
+
+This will open an interactive window. Follow the instructions in the "about" tab.
+
+## Non-Interactive Version
+
+The procedure can also be followed outside of the Shiny interface. These functions can be used on their own, or within a larger site selection procedure. 
+
+### Get a list of sites
+
+The package has two options for obtaining a list of potential sites: random sites or village sites. Random sites are generated simply from a simple random sample within the study area (a provided shapefile or bounding box) and village sites are any cities within the study area, obtained via OpenStreetMap.
+
+The user must specify the area of interest (either via a bounding box or shapefile) and the number of desired points. To get a list of random sites, execute the following command:
+
+```{r getlist, eval=FALSE, message=FALSE, warning=FALSE}
+library(ssanalyzer)
+bbox <- c(-85, 29, -82, 31) #xmin, ymin, xmax, ymax
+points <- get_random_points(area = bbox, n_points = 10)
+```
+
+The same command is also works with a shapefile, and the user can specify a distance from main roads and cities that points need to be located futher than:
+
+```{r getlist2, eval=FALSE}
+polygon <- st_read('path/to/shapefile.sf')
+# road distance in meters, and city distance in kilometers
+points <- get_random_points(area = polygon, n_points = 10, road_dist = 1000, city_dist = 10) 
+```
+
+Use the following command, to obtain a list of cities within the area of interest. The area can again be either a bounding box, or Polygon as an sf object. 
+
+```{r getlistvillage,eval=FALSE}
+bbox <- c(-85, 29, -82, 31) 
+points <- get_village_points(area = bbox)
+```
+
+
+### Analyze landcover for a list of sites
+
+Once you have a list of sites, you can analyze raster data surrounding each of the sites. The function takes in a raster, an sf object with a list of points, and the distance at which to calculate the landcover values. There are two options, one for categorical rasters (land-use/land-cover) and one for continuous rasters (NDVI, climate etc.).
+
+You have two options for the landcover data. You can upload your own data:
+
+```{r loadrast, eval=FALSE}
+r = rast('path/to/rast.tif')
+```
+
+Or you can download data for an area of interest (as an sf object) using the following command: 
+
+```{r dlrast, eval=FALSE}
+r = get_cov_landuse(area)
+```
+
+Once you have a list of sites and a raster to analyze, execute the following command to create a dataframe:
+
+```{r getlc, eval=FALSE}
+df = createLCDataFrame(in_df = points, r=r, dist = 1000)
+```
+
+Or, if you have a continuous raster, exectue the following command:
+
+```{r getndvi, eval=FALSE}
+df = createNDVIDataFrame(in_df = points, r=r, dist = 1000)
+```
+
+
+
+## Development and issues
+The \textit{ssanalyzer} package is also available in a development version on GitHub: github.com/biodivhealth/ss-analyzer. Please log any issues or feature requests on GitHub. 
