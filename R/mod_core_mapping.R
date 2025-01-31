@@ -52,15 +52,24 @@ mod_core_mapping_server <- function(id, common){
       #convert any longitude drawn outside of the original map
       xy[,1] <- ((xy[,1] + 180) %% 360) - 180
 
-      common$bbox = c(min(xy[,1]), min(xy[,2]), max(xy[,1]), max(xy[,2]))
-      bbox = common$bbox
-      common$sf = sf::st_as_sfc(sf::st_bbox(c(xmin=bbox[1],
-                                              ymin=bbox[2],
-                                              xmax=bbox[3],
-                                              ymax=bbox[4]),
-                                            crs=sf::st_crs(4326)))%>%
-        sf::st_as_sf()
+      bbox = c(min(xy[,1]), min(xy[,2]), max(xy[,1]), max(xy[,2]))
 
+      if(check_bbox(bbox)){
+        bbox_sf = sf::st_as_sfc(sf::st_bbox(c(xmin=bbox[1],
+                                                ymin=bbox[2],
+                                                xmax=bbox[3],
+                                                ymax=bbox[4]),
+                                              crs=sf::st_crs(4326)))%>%
+          sf::st_as_sf()
+        bbox_sf = fix_geometry(bbox_sf)
+        if(!is.null(bbox_sf)){
+          common$sf = bbox_sf
+        }
+        else{
+          map%>%reset_map(common$draw)
+          showNotification('Error with selected area.')
+        }
+      }
     })
 
     observe({

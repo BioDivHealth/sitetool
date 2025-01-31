@@ -92,27 +92,6 @@ check_distance <- function(points, shape, distance){
   points[!sapply(exclude, any)]
 }
 
-check_validity <- function(area, crs=4326){
-  if ("sf" %in% class(area)){
-    bbox_sf = area
-  } else if(length(area) == 4){
-    bbox_sf = sf::st_as_sfc(sf::st_bbox(c(xmin=area[[1]],
-                                          ymin=area[[2]],
-                                          xmax=area[[3]],
-                                          ymax=area[[4]]),
-                                        crs=sf::st_crs(crs)))
-  } else{
-    message("Area must be shape object or bounding box.")
-    return(NULL)
-  }
-
-  if(!sf::st_is_valid(bbox_sf)){
-    message('Area must be valid shape object.')
-    return(NULL)
-  }
-  return(bbox_sf)
-}
-
 #' @title Get random points within a polygon or bounding box
 #'
 #' @description Returns a shapefile of points within a bounding box or polygon.

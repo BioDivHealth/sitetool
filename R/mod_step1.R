@@ -86,14 +86,13 @@ mod_step1_server <- function(id){
     # Reactive values  ---------------------------------------------------------
     sites <- reactiveVal(NULL)
     input_sites <- reactiveVal(NULL)
-    mapvals <- reactiveValues(bbox=NULL, sf = NULL, draw=FALSE, raster=NULL)
+    mapvals <- reactiveValues(sf = NULL, draw=FALSE, raster=NULL)
 
     # Base Map
     mod_core_mapping_server("core_mapping_1", mapvals)
 
     # Clear map items with change of input
     observeEvent(input$map_draw, {
-      mapvals$bbox = NULL
       mapvals$raster = NULL
       mapvals$draw = ifelse(input$map_draw == 'map', TRUE, FALSE)
     })
@@ -156,7 +155,9 @@ mod_step1_server <- function(id){
     })
 
     output$boundingBoxCoords <- renderText({
-      paste(mapvals$bbox, collapse=', ')
+      if(!is.null(mapvals$sf)){
+        paste(sf::st_bbox(mapvals$sf), collapse=', ')
+      }
     })
 
     observeEvent(input$goStep1, {
@@ -177,6 +178,7 @@ mod_step1_server <- function(id){
             # Try to load the raster
             tryCatch({
               r <- terra::rast(input$rastfile$datapath)
+
             }, error = function(e) {
               showNotification("Not a suppported file format.", type = "error")
               return(NULL)
@@ -224,7 +226,7 @@ mod_step1_server <- function(id){
 
       } else {
         withProgress(message = 'Downloading landcover data', value = 0, {
-          r <- get_landuse(bbox_sf)
+          r <- get_landuse(bbox_sf, inapp=T)
 
           tryCatch({
             levels(r) <- raster_cats %>%
@@ -233,7 +235,7 @@ mod_step1_server <- function(id){
 
             mapvals$raster = r
           }, error = function(e) {
-            showNotification("Failed to download data: please check your internet connection.", type = "error")
+            showNotification("Failed to download data, please check your internet connection or select a smaller area.", type = "error")
           })
         })
       }

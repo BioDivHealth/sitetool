@@ -4,19 +4,14 @@
 #' Service e.g. (https://zenodo.org/records/4723921)
 #'
 #' @param shape sf. sf object containing the area of interest
-#' @param async boolean whether in an interactive format or n
+#' @param inapp boolean. prints messages to shiny app if in app
 #' @return a SpatRaster of landuse for the shape area.
-#' @author Simon Smart <simon.smart@@cantab.net>, modified by N. Imirzian
 #' @export
 
-get_landuse <- function(shape, async=FALSE) {
-  if (!("sf" %in% class(shape))){
-    message <- "Shape must be an sf object"
-    if (async){
-      return(message)
-    } else {
-      stop(message)
-    }
+get_landuse <- function(shape, inapp=F) {
+
+  if(is.null(check_validity(shape))){
+    return(NULL)
   }
 
   #determine 20 degree tiles covering entire shape
@@ -55,45 +50,48 @@ get_landuse <- function(shape, async=FALSE) {
     tile_polygon <- sf::st_polygon(list(tile_coords))
     tile_sf <- sf::st_sfc(tile_polygon, crs = 4326)
     tile_sf <- sf::st_sf(geometry = tile_sf)
-    valid_tiles[r] <- sum(sf::st_intersects(shape, tile_sf) |> lengths())
+    if(sf::st_is_valid(tile_sf)){
+      valid_tiles[r] <- sum(sf::st_intersects(shape, tile_sf) |> lengths())
+    }
   }
 
   tiles <- tiles[valid_tiles > 0,]
 
-
-  tryCatch({
     raster_tiles <- NULL
     i = 1
     n_steps <- length(tiles) + 3
 
-    for (t in tiles$url){
-      incProgress(1/n_steps, detail = paste("Getting tiles:", i))
-      url = glue::glue('https://s3-eu-west-1.amazonaws.com/vito.landcover.global/v3.0.1/2015/{t}_PROBAV_LC100_global_v3.0.1_2015-base_Discrete-Classification-map_EPSG-4326.tif')
-      ras <- terra::rast(url)
-      if (is.null(raster_tiles)){
-        raster_tiles <- ras
-
-      } else {
-        incProgress(1/n_steps, detail='Merging tiles')
-        raster_tiles <- terra::merge(raster_tiles, ras)
-      }
-      i=i+1
+    if (length(tiles$url) > 1 & inapp) {
+      shiny::showNotification("Please select a smaller area or upload your own data.", type = "error")
     }
-    #tile_name <- paste0(l," land use")
-    incProgress(1/n_steps, detail='Croppng raster')
-    raster_tiles <- terra::crop(raster_tiles, shape)
-    #raster_tiles <- terra::aggregate(raster_tiles, fact = 10, fun = "mean")
-    #raster_layers[[tile_name]] <- raster_tiles
-    #  names(raster_layers[[tile_name]]) <- tile_name
-    # }
-  },
-  error = function(x){
-    message <- paste0("An error occurred while trying to download land use data: ", x)
-    NULL},
-  warning = function(x){
-    message <- paste0("An error occurred while trying to download land use data: ", x)
-    NULL}
-  )
+    else{
+        for (t in tiles$url){
+          if(inapp){incProgress(1/n_steps, detail = paste("Getting tiles:", i))}
+          url = glue::glue('https://s3-eu-west-1.amazonaws.com/vito.landcover.global/v3.0.1/2015/{t}_PROBAV_LC100_global_v3.0.1_2015-base_Discrete-Classification-map_EPSG-4326.tif')
+
+          tryCatch({
+            ras <- terra::rast(url)
+            ras <- terra::crop(ras, shape)
+          }, error = function(e) {
+            showNotification(e$message)
+            return(NULL)
+          })
+          if (is.null(raster_tiles)){
+            raster_tiles <- ras
+
+          } else {
+            if(inapp){incProgress(1/n_steps, detail='Merging tiles')}
+            tryCatch({
+              # Attempt to merge the raster tiles
+              raster_tiles <- terra::merge(raster_tiles, ras)
+            }, error = function(e) {
+              return(NULL)
+            })
+
+          }
+          i=i+1
+        }
+    }
   return(raster_tiles)
 }
 

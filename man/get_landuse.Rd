@@ -4,12 +4,12 @@
 \alias{get_landuse}
 \title{Download land use data from Copernicus Global Land Service}
 \usage{
-get_landuse(shape, async = FALSE)
+get_landuse(shape, inapp = F)
 }
 \arguments{
 \item{shape}{sf. sf object containing the area of interest}
 
-\item{async}{boolean whether in an interactive format or n}
+\item{inapp}{boolean. prints messages to shiny app if in app}
 }
 \value{
 a SpatRaster of landuse for the shape area.
@@ -17,7 +17,4 @@ a SpatRaster of landuse for the shape area.
 \description{
 Downloads 100 m resolution landcover data from the Copernicus Global Land
 Service e.g. (https://zenodo.org/records/4723921)
-}
-\author{
-Simon Smart <simon.smart@cantab.net>, modified by N. Imirzian
 }
