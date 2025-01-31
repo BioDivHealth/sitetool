@@ -56,6 +56,5 @@ golem_add_external_resources <- function() {
     ),
     # Add here other external resources
     # for example, you can add shinyalert::useShinyalert()
-    options(shiny.maxRequestSize=2000*1024^2)
   )
 }

@@ -10,22 +10,6 @@ getCroppedArea <- function(place, dist=1000){
     sf::st_set_crs(4326)
 }
 
-# Finds the UTM zone based on longitude
-long2utm <- function(long) {
-  (floor((long + 180)/6) %% 60) + 1
-}
-
-# Check if raster is in UTM
-# To-do: error handling of no crs
-isUTM <- function(raster) {
-  crs_info <- terra::crs(raster)
-  if (grepl("+proj=utm", crs_info)) {
-    return(TRUE)
-  } else {
-    return(FALSE)
-  }
-}
-
 calculatePatchMetrics <- function(raster_crop, cell_areas) {
   # Convert raster to patches (connected areas of the same class)
   s = terra::segregate(raster_crop, keep=TRUE, other=NA)
@@ -50,7 +34,7 @@ createLCDataFrame <- function(in_df, r, dist, progress=F){
   df_list = lapply(seq(nrow(in_df)), function(i){
 
     # Crop land cover by dist radius from village
-    area = getCroppedArea(in_df$geometry[i], dist)
+    area = getCroppedArea(in_df$geometry[[i]], dist)
     # tryCatch(!is.null(crop(r,extent(rect))), error=function(e) return(FALSE))
 
     if(terra::relate(terra::ext(area), terra::ext(r), relation = 'within')){
@@ -71,7 +55,6 @@ createLCDataFrame <- function(in_df, r, dist, progress=F){
 
       # Combine into one dataframe
       d_temp = cbind(class_tot, class_area)
-      d_temp$site = in_df$site[i]
       d_temp$site_id = in_df$site_id[i]
       d_temp$input_site = in_df$input_site[i]
       if(progress){incProgress(1/nrow(in_df), detail = paste("Site number:", i))}

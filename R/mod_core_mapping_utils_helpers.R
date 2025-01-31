@@ -24,6 +24,8 @@ reset_map <- function(map, draw){
 
 }
 
+
+
 map_points <- function(map, sites) {
 
   if (!is.null(sites) && nrow(sites) > 0) {
@@ -47,7 +49,8 @@ map_points <- function(map, sites) {
   }
 }
 
-draw_sf <- function(map, sf_obj, draw) {
+
+draw_sf <- function(map, sf_obj, draw=F) {
   bbx = sf::st_bbox(sf_obj)
 
   map <- map %>%
@@ -56,6 +59,7 @@ draw_sf <- function(map, sf_obj, draw) {
     leaflet::fitBounds(lng1 = bbx[[1]], lat1 = bbx[[2]],
                        lng2 = bbx[[3]], lat2 = bbx[[4]])
 }
+
 
 add_raster <- function(map, r){
   max_raster_size <- 4194304  # 4 MB
