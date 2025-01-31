@@ -17,23 +17,21 @@ Imports:
     ggdist,
     ggiraph,
     ggplot2,
-    glue,
     golem,
     grDevices,
     leaflet,
     leaflet.extras,
     magrittr,
     osmdata,
-    purrr,
     sf,
     shiny,
     stats,
-    stringr,
     terra,
     tidyr,
     utils
 Suggests: 
     knitr,
+    lwgeom,
     rmarkdown,
     testthat (>= 3.0.0)
 VignetteBuilder: 

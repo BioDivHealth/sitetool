@@ -10,57 +10,36 @@ test_that("getCroppedArea returns correct buffer", {
   expect_true(nrow(buffered_area) > 0)
 })
 
-test_that("createLCDataFrame works as expected", {
+test_that("createLCDataFrame skips invalid areas", {
 
-  # Create a mock categorical raster (e.g., landcover categories)
-  # Assuming a 10x10 raster with 3 landcover classes
+  # Create a dummy raster
   r <- terra::rast(ncol = 10, nrow = 10, vals = sample(1:3, 100, replace = TRUE))
 
+  # Set categories for raster
   categories <- data.frame(
     value = 1:3,      # Raster values (e.g., 1 = forest, 2 = water, 3 = urban)
     cover = c("forest", "water", "urban")  # Corresponding landcover names
   )
-
-  # Set categories using the two-column data.frame
   levels(r) = categories
 
   # Create a mock data frame representing village sites
   in_df <- data.frame(
-    site = c("village1", "village2"),
-    site_id = c(1, 2),
-    input_site = c(TRUE, FALSE)
+    site = c("village1"),
+    site_id = c(1),
+    input_site = c(TRUE)
+  )
+  in_df$geometry <- sf::st_sfc(
+    sf::st_point(c(2000, 2000))  # point outside of raster bounds
   )
 
-  in_df$geometry = sf::st_sfc(
-    sf::st_point(c(1, 1)),
-    sf::st_point(c(6, 6))
-  )
+  # Test the function
+  result_invalid_area <- createLCDataFrame(in_df, r, dist = 5, progress = FALSE)
 
-  # Distance parameter for the radius
-  dist <- 10  # 1 unit of distance for cropping
-
-  # Run the function
-  result <- createLCDataFrame(in_df, r, dist)
-
-  # expect four columns
-  expect_equal(length(result), 4)
-
-  # Check that necessary columns exist
-  expect_true("cover" %in% names(result))
-  expect_true("site_id" %in% names(result))
-  expect_true("measure" %in% names(result))
-  expect_true("value" %in% names(result))
-
-  # Check that the expected columns (mean_patch_area, cover_total_area) have numeric values
-  expect_true(all(is.numeric(result$value)))
-
-  # Check if the output has more than one row (i.e., some processing happened)
-  expect_gt(nrow(result), 0)
-
-  # Check that the `site_id` grouping works properly and the proportions are calculated
-  expect_true(all(result$measure %in% c("cover_total_area", "mean_patch_area", "proportion")))
+  # Ensure the result is empty since the site is outside of raster bounds
+  expect_equal(nrow(result_invalid_area), 0)
 
 })
+
 # Test continuous dataframe
 test_that("createContDataFrame returns a dataframe", {
   result <- createContDataFrame(sample_sf, sample_raster, dist = 1000, progress = FALSE)

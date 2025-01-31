@@ -67,7 +67,10 @@ get_landuse <- function(shape, inapp=F) {
     else{
         for (t in tiles$url){
           if(inapp){incProgress(1/n_steps, detail = paste("Getting tiles:", i))}
-          url = glue::glue('https://s3-eu-west-1.amazonaws.com/vito.landcover.global/v3.0.1/2015/{t}_PROBAV_LC100_global_v3.0.1_2015-base_Discrete-Classification-map_EPSG-4326.tif')
+          url = url <- paste0("https://s3-eu-west-1.amazonaws.com/vito.landcover.global/v3.0.1/2015/",
+                              t,
+                              "_PROBAV_LC100_global_v3.0.1_2015-base_Discrete-Classification-map_EPSG-4326.tif")
+
 
           tryCatch({
             ras <- terra::rast(url)
@@ -92,6 +95,12 @@ get_landuse <- function(shape, inapp=F) {
           i=i+1
         }
     }
+
+    # Apply labels
+    levels(raster_tiles) <- raster_cats %>%
+      subset(product == 'Copernicus Global Land Cover') %>%
+      dplyr::select(c(value, subcover))
+
   return(raster_tiles)
 }
 

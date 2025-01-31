@@ -53,7 +53,7 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
 
       withProgress(message = "Calculating landcover values", value = 0, {
         if (product() == 'Climate/NDVI') {
-          out_df <- createNDVIDataFrame(sites(), raster = lc_data(), dist = input$radius, progress = TRUE)
+          out_df <- createContDataFrame(sites(), raster = lc_data(), dist = input$radius, progress = TRUE)
 
         } else {
           r = lc_data()
@@ -71,7 +71,7 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
 
         # Add x and y of sites to dataframe
         out_df <- out_df%>%
-          dplyr::left_join(sites_xy)
+          dplyr::left_join(sites_xy, by=c("site_id"))
 
         # Add product being used
         out_df$product = product()
@@ -117,17 +117,21 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
             raster_cats%>%
               dplyr::filter(product == product())%>%
               dplyr::select(c(cover, color)) %>%
-              dplyr::rename(measure = cover))%>%
+              dplyr::rename(measure = cover),
+            by = c("cover"))%>%
           dplyr::mutate(measure = ifelse(measure == 'sd', 'standard deviation', measure))
 
-        purrr::map(unique(d$measure), function(cat) {
-          measure_data <- d %>% dplyr::filter(measure == cat)
-          tagList(
-            ggiraph::renderGirafe({ generate_plot(measure_data, cat, input$cover) }),
-            HTML(generate_text(measure_data, cat)),
-            hr()
-          )
-        }) %>% tagList()
+        tagList(
+          lapply(unique(d$measure), function(cat) {
+            measure_data <- d[d$measure == cat, ]  # Equivalent to dplyr::filter(measure == cat)
+
+            tagList(
+              ggiraph::renderGirafe({ generate_plot(measure_data, cat, input$cover) }),
+              HTML(generate_text(measure_data, cat)),
+              hr()
+            )
+          })
+        )
 
       } else {
 
@@ -143,16 +147,18 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
           )
 
         # Generate plots for each unique cover
-        purrr::map(unique(d$cover), function(cat) {
-          cover_data <- d %>%
-            dplyr::filter(cover == cat)
+        tagList(
+          lapply(unique(d$cover), function(cat) {
+            cover_data <- d %>%
+              dplyr::filter(cover == cat)
 
-          tagList(
-            ggiraph::renderGirafe({ generate_plot(cover_data, cat, input$measure) }),
-            HTML(generate_text(cover_data, cat)),
-            hr()
-          )
-        }) %>% tagList()
+            tagList(
+              ggiraph::renderGirafe({ generate_plot(cover_data, cat, input$measure) }),
+              HTML(generate_text(cover_data, cat)),
+              hr()
+            )
+          })
+        )
       }
     })
     # Save File: Full dataset  -------------------------------------------------

@@ -48,6 +48,9 @@ generate_text <- function(data, cat) {
 
 # Function to generate interactive plots for each cover
 generate_ggplot <- function(data, cat, measure) {
+  title <- paste(gsub("\\b(\\w)", "\\U\\1", cat, perl = TRUE),
+                 gsub("\\b(\\w)", "\\U\\1", measure, perl = TRUE))
+
 
     p <- ggplot2::ggplot() +
       ggdist::stat_halfeye(
@@ -80,7 +83,7 @@ generate_ggplot <- function(data, cat, measure) {
       #   scale_color_manual(values = c("highlight" = "yellow", "Input Sites" = "red", "All Sites" = "black")) +
       ggplot2::coord_flip() +
       ggplot2::labs(x = '', y = '',
-           title = paste(stringr::str_to_title(cat), stringr::str_to_title(measure))) +
+           title = title) +
       ggplot2::theme_minimal() +
       ggplot2::theme(legend.position = 'none',
             plot.title = ggplot2::element_text(face = "bold", hjust=0.5))

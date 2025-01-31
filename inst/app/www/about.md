@@ -3,25 +3,23 @@
 The aim of this tool is to help researchers select and assess potential field sites for studies on ecology, public health, anthropology, and more, in a quantitative way. Often, researchers aim to have field sites that exist along a gradient of different land use types and characteristics. This tool allows researchers to analyze the landcover characteristics of a list of sites, and see where potential sites fall along a gradient of other potential sites.  
 
 There are two main ways to use this app:
-1. Generate a list of potential sites within a bounding box and analyze the landcover characteristics for each site based on an uploaded raster.
-2. Check if previously selected field sites are biased by comparing landcover characteristics to other potential sites in the same area.
+1. Generate a list of potential sites within a bounding box and analyze the land cover characteristics for each site based on an uploaded raster.
+2. Check if previously selected field sites are biased by comparing land cover characteristics to other potential sites in the same area.
 
-By using this tool, researchers may uncover previously unconsidered field sites as well as ensure that their chosen sites exist along a landcover gradient relevant to their question of interest.
+By using this tool, researchers may uncover previously unconsidered field sites as well as ensure that their chosen sites exist along a land cover gradient relevant to their question of interest.
 
 #### Input Raster Sources
 
-You can use the default landcover raster (Copernicus Dynamic Land Cover 100m) or upload a landcover raster for your region of interest in *GeoTIFF* format. The app currently can take three types of categorical land-use/landcover data:
+You can use the default land cover raster (Copernicus Dynamic Land Cover 100m) or upload a landcover raster for your region of interest in *GeoTIFF* format. The app currently can take three types of categorical land-use/landcover data:
 1. [ESA WorldCover Viewer](https://viewer.esa-worldcover.org/worldcover/) 
 2. [Dynamic World](https://dynamicworld.app/)
 3. [Copernicus Dynamic Land Cover](https://lcviewer.vito.be/)
 
-Please visit the above sites to download a raster for your region of interest. If your region covers multiple tiles, please merge tiles into one file prior to uploading. Please ensure the raster CRS is WGS 84, and the values for any landcover type are in one layer following the numeric codes for the above products. 
+Please visit the above sites to download a raster for your region of interest. If your region covers multiple tiles, please merge tiles into one file prior to uploading. Please ensure the raster CRS is WGS 84, and the values for any land cover type are in one layer following the numeric codes for the above products. 
 
 The app can also support rasters with continuous values, such as for temperature or NDVI. For these inputs, please ensure the input raster has only one numeric layer. 
 
-The following Google Earth Engine scripts can also be used to download raster data for your area of interest: 
-- [WorldCover](https://code.earthengine.google.com/e72cc4c8fffadb6d94cf1f00af108aa8) 
-- [Dynamic Land Cover](https://code.earthengine.google.com/91b9e975160f1478a41080a83066bc38)
+The following Google Earth Engine scripts can also be used to download raster data for your area of interest (link to github).
 
 It is recommended to use high-resolution products (< 100m) due to the scale of the analysis.  
 
@@ -52,9 +50,5 @@ It is recommended to use high-resolution products (< 100m) due to the scale of t
   - Total Area (m<sup>2</sup>): area covered by land cover category in the area analyzed
 4. The comparison plot and table shows the values of your input sites relative to the other sites analyzed. Hover over each point to find the name of the site.
 
-#### Credits
-- Simon Smart/[shinyscholar](https://simon-smart88.github.io/shinyscholar/) for the mapping code.
-- OpenStreeetMap 
-
 #### Requests/issues?
-Please log on github: https://github.com/BioDivHealth/ss-analyzer
+Please log on github.

@@ -28,14 +28,32 @@ calculatePatchMetrics <- function(raster_crop, cell_areas) {
 
 
 # Main Function: Create landcover dataframe ------------------------------------
+#' Analyze categorical land cover surrounding a list of sites
+#'
+#' This function calculates land cover statistics for each site based on a given radius, using a categorical raster.
+#'
+#' @param in_df A data frame containing site information, including a `geometry` column with spatial point or polygon data.
+#' @param r A categorical raster (`SpatRaster`) representing land cover classifications.
+#' @param dist Numeric. The radius (in map units) around each site to extract land cover information.
+#' @param progress Logical. If `TRUE`, updates a progress bar during processing.
+#'
+#' @return A data frame summarizing land cover metrics for each site, including total area, mean patch area, and proportion of land cover types.
+#'
+#' @details
+#' The function processes each site by:
+#' 1. Cropping the land cover raster within the specified radius.
+#' 2. Calculating total cell area for each land cover type.
+#' 3. Computing patch metrics such as mean patch area.
+#' 4. Aggregating and restructuring the results into a long-format data frame.
+#'
+#' @export
 createLCDataFrame <- function(in_df, r, dist, progress=F){
 
   ### Calculate landcover for each village based on radius ###
   df_list = lapply(seq(nrow(in_df)), function(i){
 
     # Crop land cover by dist radius from village
-    area = getCroppedArea(in_df$geometry[[i]], dist)
-    # tryCatch(!is.null(crop(r,extent(rect))), error=function(e) return(FALSE))
+    area = getCroppedArea(in_df$geometry[i], dist)
 
     if(terra::relate(terra::ext(area), terra::ext(r), relation = 'within')){
       raster_crop = terra::crop(r, area)
@@ -43,7 +61,6 @@ createLCDataFrame <- function(in_df, r, dist, progress=F){
       cell_areas = terra::cellSize(raster_crop)
       # Get total by layer
       class_tot = terra::zonal(cell_areas, raster_crop, sum, na.rm=TRUE)
-
 
       # Get patch area by layer
       class_area = calculatePatchMetrics(raster_crop, cell_areas)
@@ -63,24 +80,69 @@ createLCDataFrame <- function(in_df, r, dist, progress=F){
   })
   df = do.call(rbind, df_list)
 
-  df = df%>%
-    subset(!is.na(layer))%>%
-    dplyr::select(-c(layer))%>%
-    dplyr::group_by(site_id)%>%
-    dplyr::mutate(total_area = sum(area))%>%
-    dplyr::group_by(site_id, cover)%>%
-    dplyr::reframe(
-      mean_patch_area =  mean(mean_patch_area),
-      cover_total_area = sum(area),
-      proportion = sum(area)/total_area)%>%
-    dplyr::ungroup()%>%
-    dplyr::distinct()%>%
-    tidyr::pivot_longer(c(cover_total_area, mean_patch_area, proportion), names_to = 'measure', values_to = 'value')
+  if ("layer" %in% colnames(df)) {
+    df = df %>%
+      subset(!is.na(layer)) %>%
+      dplyr::select(-c(layer)) %>%
+      dplyr::group_by(site_id) %>%
+      dplyr::mutate(total_area = sum(area)) %>%
+      dplyr::group_by(site_id, cover) %>%
+      dplyr::reframe(
+        mean_patch_area = mean(mean_patch_area),
+        cover_total_area = sum(area),
+        proportion = sum(area) / total_area
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::distinct() %>%
+      tidyr::pivot_longer(c(cover_total_area, mean_patch_area, proportion), names_to = 'measure', values_to = 'value')
+  } else {
+    df = data.frame(site_id = integer(0), cover = character(0), measure = character(0), value = numeric(0))
+  }
 
   return(df)
 }
 
-createNDVIDataFrame <- function(in_df, raster, dist, progress=F){
+
+#' Analyze a continuous raster surrounding a list of sites
+#'
+#' This function returns statistics for an input raster for each site based on a given radius.
+#'
+#' @param in_df A data frame containing site information, including a `geometry` column with spatial point or polygon data.
+#' @param raster A continuous raster (`SpatRaster`) representing NDVI or other continuous environmental data.
+#' @param dist Numeric. The radius (in map units) around each site to extract raster statistics.
+#' @param progress Logical. If `TRUE`, updates a progress bar during processing.
+#'
+#' @return A data frame summarizing raster-wide statistics (mean, standard deviation, min, max) for each site.
+#'
+#' @details
+#' The function processes each site by:
+#' 1. Cropping the raster within the specified radius.
+#' 2. Calculating summary statistics: mean, standard deviation, range (min/max).
+#' 3. Restructuring the results into a long-format data frame.
+#'
+#' @examples
+#' \dontrun{
+#' library(terra)
+#' library(sf)
+#'
+#' # Example continuous raster (NDVI-like data)
+#' r <- rast(ncol = 10, nrow = 10, vals = runif(100, -1, 1)) # Simulated NDVI values
+#'
+#' # Example site data with points
+#' in_df <- data.frame(
+#'   site = c("village1", "village2"),
+#'   site_id = c(1, 2),
+#'   input_site = c(TRUE, FALSE)
+#' )
+#' in_df$geometry <- st_sfc(st_point(c(1,1)), st_point(c(6,6)))
+#' in_df <- st_as_sf(in_df)
+#'
+#' # Run function
+#' createNDVIDataFrame(in_df, r, dist = 500, progress = TRUE)
+#' }
+#'
+#' @export
+createContDataFrame <- function(in_df, raster, dist, progress=F){
 
   df_list = lapply(seq(nrow(in_df)), function(i){
 

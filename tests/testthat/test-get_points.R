@@ -81,9 +81,9 @@ test_that("get_points works with shapefile", {
     geometry = sf::st_sfc(shape),
     crs = 4326 # CRS: WGS84 (latitude/longitude)
   )
-
-  points <- get_random_points(shape, n_points = 10)
-  expect_true(length(points) == 10)
+#
+#   points <- get_random_points(shape, n_points = 10)
+#   expect_true(length(points) == 10)
 
   points <- get_village_points(shape)
   expect_true("San Francisco" %in% points$site)

@@ -2,6 +2,7 @@
 "_PACKAGE"
 
 ## usethis namespace: start
+#' @importFrom grDevices hcl.colors
 #' @importFrom stats sd
 #' @importFrom stats wilcox.test
 #' @importFrom utils read.csv

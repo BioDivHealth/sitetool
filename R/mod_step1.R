@@ -227,16 +227,11 @@ mod_step1_server <- function(id){
       } else {
         withProgress(message = 'Downloading landcover data', value = 0, {
           r <- get_landuse(bbox_sf, inapp=T)
-
-          tryCatch({
-            levels(r) <- raster_cats %>%
-              subset(product == input$product) %>%
-              dplyr::select(c(value, subcover))
-
-            mapvals$raster = r
-          }, error = function(e) {
+          if(is.null(r)){
             showNotification("Failed to download data, please check your internet connection or select a smaller area.", type = "error")
-          })
+
+          }
+          mapvals$raster = r
         })
       }
 

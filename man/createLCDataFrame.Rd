@@ -28,25 +28,3 @@ The function processes each site by:
 3. Computing patch metrics such as mean patch area.
 4. Aggregating and restructuring the results into a long-format data frame.
 }
-\examples{
-\dontrun{
-library(terra)
-library(sf)
-
-# Example categorical raster
-
-
-# Example site data with points
-in_df <- data.frame(
-  site = c("village1", "village2"),
-  site_id = c(1, 2),
-  input_site = c(TRUE, FALSE)
-)
-in_df$geometry <- st_sfc(st_point(c(1,1)), st_point(c(6,6)))
-in_df <- st_as_sf(in_df)
-
-# Run function
-createLCDataFrame(in_df, r, dist = 500, progress = TRUE)
-}
-
-}

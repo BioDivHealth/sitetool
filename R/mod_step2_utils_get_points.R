@@ -13,7 +13,6 @@
 #' @export get_land_area
 #'
 get_land_area <- function(shape){
-
   crop_land = sf::st_intersection(sf::st_geometry(sf::st_make_valid(land_boundaries)), shape)
   crop_lakes = sf::st_crop(sf::st_geometry(sf::st_make_valid(lakes_boundaries)), shape)
 

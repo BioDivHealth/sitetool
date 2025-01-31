@@ -62,8 +62,6 @@ draw_sf <- function(map, sf_obj, draw=F) {
 
 
 add_raster <- function(map, r){
-  max_raster_size <- 4194304  # 4 MB
-
   # Calculate the raster size in bytes3
   raster_size <- terra::ncell(r) * terra::nlyr(r) * 8
   r_plot = r
@@ -87,7 +85,7 @@ add_raster <- function(map, r){
   else{
     min_val <- min(terra::values(r_plot), na.rm = TRUE)
     max_val <- max(terra::values(r_plot), na.rm = TRUE)
-    colors <- rev(grDevices::terrain.colors(10))
+    colors <- rev(hcl.colors(10, palette = "Terrain"))
 
     map <- map%>%
       leaflet::addRasterImage(r_plot, colors = leaflet::colorNumeric(

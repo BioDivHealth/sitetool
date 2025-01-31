@@ -14,5 +14,7 @@ globalVariables(unique(c(
   # mod_step1_server : <anonymous>:
   "product", "raster_cats", "subcover", '.',
   # mod_step3_server : <anonymous>:
-  "latitude", "longitude", "measure"
+  "latitude", "longitude", "measure",
+  # max raster size (changes for server vs local)
+  max_raster_size <- 50 * 1024^2  # 4 MB or 500 MB depending on version
 )))
