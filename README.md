@@ -30,12 +30,13 @@ best on your local computer by following the below instructions.
 
 ## Installation
 
-You can install the current development version of `{ssanalyzer}` by
-typing the following in an R window:
+Navigate to the path where you downloaded the zip file, and type the following:
 
 ``` r
-devtools::install_github('https://github.com/BioDivHealth/ss-analyzer')
+remotes::install_local('ss-analyzer-main.zip')
 ```
+
+This should install the package and the dependencies. 
 
 ## Usage
 

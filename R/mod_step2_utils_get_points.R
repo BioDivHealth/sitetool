@@ -40,6 +40,7 @@ get_land_area <- function(shape){
 #' @param crs the four-digit code for the coordinate reference system of the data. Default is EPSG:4326
 #'
 #' @returns a `sf` containing the highways within a bounding box
+#' #' @export get_roads
 
 get_roads <- function(bbox, crs = 4326) {
   tryCatch({
@@ -71,6 +72,7 @@ get_roads <- function(bbox, crs = 4326) {
 #' @param crs the four-digit code for the coordinate reference system of the data. Default is EPSG:4326
 #'
 #' @returns a `sf` containing cities within the bounding box
+#' #' @export get_cities
 
 get_cities <- function(bbox, crs=4326){
   tryCatch({

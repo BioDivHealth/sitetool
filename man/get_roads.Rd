@@ -13,6 +13,7 @@ get_roads(bbox, crs = 4326)
 }
 \value{
 a `sf` containing the highways within a bounding box
+#' @export get_roads
 }
 \description{
 A function returning a shapefile of the roads within a bounding box. Uses

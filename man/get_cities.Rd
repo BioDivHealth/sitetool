@@ -13,6 +13,7 @@ get_cities(bbox, crs = 4326)
 }
 \value{
 a `sf` containing cities within the bounding box
+#' @export get_cities
 }
 \description{
 A function returning a shapefile of the cities within a bounding box. Uses

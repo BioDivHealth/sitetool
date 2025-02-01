@@ -22,6 +22,7 @@ Imports:
     leaflet,
     leaflet.extras,
     magrittr,
+    markdown,
     osmdata,
     sf,
     shiny,
