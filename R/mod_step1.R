@@ -53,7 +53,7 @@ mod_step1_ui <- function(id) {
           conditionalPanel(
             ns=NS(id),
             condition = "input.upload == 'TRUE'",
-            fileInput(ns("rastfile"), h6("Upload a GeoTIFF covering your region of interest:"), accept = c("tif", ".tiff")),
+            fileInput(ns("rastfile"), h6("Upload a GeoTIFF covering your region of interest:")),
             selectInput(ns('product'),
                         'Landcover Product:',
                         choices = c('Copernicus Global Land Cover', 'ESA WorldCover',  'Dynamic World', 'Climate/NDVI/DEM' = 'Climate/NDVI'))
