@@ -209,6 +209,10 @@ mod_step1_server <- function(id){
                 levels(r) <- raster_cats %>%
                   subset(product == input$product) %>%
                   dplyr::select(c(value, subcover))
+
+                coltab(r) <- raster_cats %>%
+                  subset(product == input$product) %>%
+                  dplyr::select(c(value, color))
               }, error = function(e) {
                 showNotification("Failed to assign levels to the raster. Please check the category data.", type = "error")
               })
