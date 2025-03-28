@@ -3,25 +3,30 @@
 
 # Creates a buffer around a point location
 getCroppedArea <- function(place, dist=1000){
-  place%>%
+
+  crop = place%>%
     terra::vect()%>%
+    terra::centroids()%>%
     terra::buffer(width=dist)%>%
     sf::st_as_sf()%>%
     sf::st_set_crs(4326)
+
+  return(crop)
 }
 
 calculatePatchMetrics <- function(raster_crop, cell_areas) {
   # Convert raster to patches (connected areas of the same class)
+
   s = terra::segregate(raster_crop, keep=TRUE, other=NA)
   p = terra::patches(s, directions = 8)
 
   patch_areas = lapply(p, function(x){
+
     z = terra::zonal(cell_areas, x, sum)
     data.frame(layer = names(x),
                mean_patch_area = mean(z$area, na.rm=T)
     )
   })
-
   patch_areas = do.call(rbind, patch_areas)
   patch_areas = patch_areas%>%subset(layer != 'patches')
 }
@@ -52,6 +57,7 @@ createLCDataFrame <- function(in_df, r, dist, progress=F){
   ### Calculate landcover for each village based on radius ###
   df_list = lapply(seq(nrow(in_df)), function(i){
 
+
     # Crop land cover by dist radius from village
     area = getCroppedArea(in_df$geometry[i], dist)
 
@@ -63,11 +69,14 @@ createLCDataFrame <- function(in_df, r, dist, progress=F){
       class_tot = terra::zonal(cell_areas, raster_crop, sum, na.rm=TRUE)
 
       # Get patch area by layer
-      class_area = calculatePatchMetrics(raster_crop, cell_areas)
+
 
       # When only one landcover type
-      if(nrow(class_area) == 0){
-        class_area = data.frame(layer = NA, mean_patch_area = NA)
+      if(nrow(class_tot) < 2){
+        class_area = data.frame(layer = class_tot$cover, mean_patch_area = class_tot$area)
+      }
+      else{
+        class_area = calculatePatchMetrics(raster_crop, cell_areas)
       }
 
       # Combine into one dataframe
@@ -80,9 +89,9 @@ createLCDataFrame <- function(in_df, r, dist, progress=F){
   })
   df = do.call(rbind, df_list)
 
+
   if ("layer" %in% colnames(df)) {
     df = df %>%
-      subset(!is.na(layer)) %>%
       dplyr::select(-c(layer)) %>%
       dplyr::group_by(site_id) %>%
       dplyr::mutate(total_area = sum(area)) %>%
