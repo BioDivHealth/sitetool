@@ -186,7 +186,13 @@ get_random_points <- function(area, n_points, road_dist=0, city_dist=0, crs=4326
   if(length(foundPoints) > n_points){
     foundPoints = foundPoints[sample(1:length(foundPoints), n_points)]
   }
-  foundPoints
+  # turn into dataframe
+  sites = data.frame(foundPoints)%>%
+    sf::st_as_sf()%>%
+    dplyr::mutate(site = 1:length(foundPoints),
+                  site_id = paste0('random_', 1:length(foundPoints)),
+                  input_site = FALSE)
+  return(sites)
 }
 
 #' @title Get village points within a polygon  or bounding box

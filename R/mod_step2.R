@@ -165,19 +165,11 @@ mod_step2_server <- function(id, shape, lc_raster){
         req(input$num_sites)
 
 
-        points = get_random_points(mapvals$sf,
+        sites_filter = get_random_points(mapvals$sf,
                                    as.numeric(input$num_sites),
                                    as.numeric(input$dist_road),
                                    as.numeric(input$dist_city),
                                    in_app=T)
-
-        # turn into dataframe
-        sites_filter = data.frame(points)%>%
-          sf::st_as_sf()%>%
-          dplyr::mutate(site = 1:length(points),
-                        site_id = paste0('random_', 1:length(points)),
-                        input_site = FALSE)
-
       }
 
       if(!is.null(input_sites())){

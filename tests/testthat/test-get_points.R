@@ -44,15 +44,15 @@ test_that("get_random_points generates the correct number of points", {
   # Basic case: return right number of points
   bbox <- c(-85, 29, -82, 31)
   points <- get_random_points(bbox, n_points = 10)
-  expect_true(length(points) == 10)
+  expect_true(nrow(points) == 10)
 
   bbox <- c(-80, 25, -75, 30)
   points <- get_random_points(bbox, road_dist=10, n_points = 10)
-  expect_true(length(points) == 10)
+  expect_true(nrow(points) == 10)
 
   bbox <- c(-80, 25, -75, 30)
   points <- get_random_points(bbox, road_dist=10, city_dist=10, n_points = 10)
-  expect_true(length(points) == 10)
+  expect_true(nrow(points) == 10)
 
   # Return no points
   bbox <- c(0, 0, 0, 0)
