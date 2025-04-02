@@ -210,7 +210,7 @@ mod_step1_server <- function(id){
                   subset(product == input$product) %>%
                   dplyr::select(c(value, subcover))
 
-                coltab(r) <- raster_cats %>%
+                terra::coltab(r) <- raster_cats %>%
                   subset(product == input$product) %>%
                   dplyr::select(c(value, color))
               }, error = function(e) {

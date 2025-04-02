@@ -123,8 +123,7 @@ You can use the default land cover raster (Copernicus Dynamic Land Cover
 **GeoTIFF** format. The app currently can take three types of
 categorical land-use/landcover data:
 
-1.  [ESA WorldCover
-    Viewer](https://viewer.esa-worldcover.org/worldcover/)
+1.  [ESA WorldCover Viewer](https://viewer.esa-worldcover.org/worldcover/)
 2.  [Dynamic World](https://dynamicworld.app/)
 3.  [Copernicus Dynamic Land Cover](https://lcviewer.vito.be/)
 
@@ -137,11 +136,6 @@ numeric codes for the above products.
 The app can also support rasters with continuous values, such as for
 temperature, NDVI, or elevation. For these inputs, please ensure the
 input raster has only one numeric layer.
-
-Additionally, there are a series of Google Earth Engine scripts within
-the
-[GEE_Landcover_Scripts](https://github.com/biodivhealth/ssanalyzer/tree/master/GEE_Landcover_Scripts)
-folder that can be used to download the above land cover data.
 
 It is recommended to use high-resolution products (\< 100m) due to the
 scale of the analysis.
