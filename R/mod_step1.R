@@ -140,13 +140,13 @@ mod_step1_server <- function(id){
       }
 
       # Check if the object is a valid sf object
-      if (!sf::st_is_valid(shape)) {
+      if (!all(sf::st_is_valid(shape))) {
         showNotification("The geometry of the shape is not valid, please try again.", type = "error")
         return()
       }
 
       # Check if the geometry type is polygon
-      if (!("POLYGON" %in% sf::st_geometry_type(shape))) {
+      if (!any(sf::st_geometry_type(shape) %in% c("POLYGON", "MULTIPOLYGON"))){
         showNotification("Please ensure a single polygon is uploaded.", type = "error")
         return()
       }

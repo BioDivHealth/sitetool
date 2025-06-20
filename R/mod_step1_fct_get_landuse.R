@@ -30,7 +30,7 @@ get_landuse <- function(shape, inapp=F) {
   tiles$y_str <- gsub("\\+", "N", tiles$y_str)
   tiles$x_str <- gsub("-", "W", tiles$x_str)
   tiles$x_str <- gsub("\\+", "E", tiles$x_str)
-  tiles$url <- paste0(tiles$x_str, tiles$y_str,"/", tiles$x_str, tiles$y_str)
+  tiles$url <- paste0(tiles$x_str, tiles$y_str)
 
   #check whether each tile contains part of the region of interest
   #needed in case of multiple countries / empty tiles
@@ -63,45 +63,54 @@ get_landuse <- function(shape, inapp=F) {
 
     if (length(tiles$url) > 1 & inapp) {
       shiny::showNotification("Please select a smaller area or upload your own data.", type = "error")
-    }
-    else{
-        for (t in tiles$url){
-          if(inapp){incProgress(1/n_steps, detail = paste("Getting tiles:", i))}
-          url = url <- paste0("https://s3-eu-west-1.amazonaws.com/vito.landcover.global/v3.0.1/2015/",
-                              t,
-                              "_PROBAV_LC100_global_v3.0.1_2015-base_Discrete-Classification-map_EPSG-4326.tif")
+    } else {
+      raster_tiles <- NULL
+      i <- 1
 
+      for (t in tiles$url) {
+        if (inapp) incProgress(1/n_steps, detail = paste("Getting tiles:", i))
 
-          tryCatch({
-            ras <- terra::rast(url)
-            ras <- terra::crop(ras, shape)
-          }, error = function(e) {
-            showNotification(e$message)
-            return(NULL)
-          })
-          if (is.null(raster_tiles)){
+        url <- paste0(
+          "https://globalland.vito.be/download/geotiff/land_cover/lcc_100m_v3_yearly/2015/20150101/",
+          t,
+          "_PROBAV_LC100_global_v3.0.1_2015-base_Discrete-Classification-map_EPSG-4326.tif"
+        )
+
+        ras <- tryCatch({
+          r <- try(terra::rast(url), silent=TRUE)
+          if (terra::is.empty(r)) stop("Raster object is empty or invalid.")
+          r <- terra::crop(r, shape)
+          r
+        }, error = function(e) {
+          return(NULL)
+        })
+
+        if (!is.null(ras)) {
+          if (is.null(raster_tiles)) {
             raster_tiles <- ras
-
           } else {
-            if(inapp){incProgress(1/n_steps, detail='Merging tiles')}
+            if (inapp) incProgress(1/n_steps, detail = "Merging tiles")
             tryCatch({
-              # Attempt to merge the raster tiles
               raster_tiles <- terra::merge(raster_tiles, ras)
             }, error = function(e) {
-              return(NULL)
+              showNotification(paste("Merge failed for tile:", t), type = "error")
             })
-
           }
-          i=i+1
         }
+
+        i <- i + 1
+      }
+
+      if (is.null(raster_tiles)) {
+        return(NULL)
+      }
+
+      # Apply labels
+      levels(raster_tiles) <- raster_cats %>%
+        subset(product == 'Copernicus Global Land Cover') %>%
+        dplyr::select(c(value, subcover))
     }
 
-    # Apply labels
-    levels(raster_tiles) <- raster_cats %>%
-      subset(product == 'Copernicus Global Land Cover') %>%
-      dplyr::select(c(value, subcover))
-
-  return(raster_tiles)
+    return(raster_tiles)
 }
-
 

@@ -13,8 +13,10 @@
 #' @export get_land_area
 #'
 get_land_area <- function(shape){
-  crop_land = sf::st_intersection(sf::st_geometry(sf::st_make_valid(land_boundaries)), shape)
-  crop_lakes = sf::st_crop(sf::st_geometry(sf::st_make_valid(lakes_boundaries)), shape)
+  shape_geom <- sf::st_union(sf::st_geometry(sf::st_make_valid(shape)))
+
+  crop_land = sf::st_intersection(sf::st_geometry(sf::st_make_valid(land_boundaries)), shape_geom)
+  crop_lakes = sf::st_crop(sf::st_geometry(sf::st_make_valid(lakes_boundaries)), shape_geom)
 
   if (length(crop_lakes) == 0 & length(crop_land) == 0) {
 
@@ -157,7 +159,7 @@ get_random_points <- function(area, n_points, road_dist=0, city_dist=0, crs=4326
   land = get_land_area(bbox_sf)
 
   # Check that search area is valid
-  if(!sf::st_is_valid(bbox_sf)){
+  if(!all(sf::st_is_valid(bbox_sf))){
     if(in_app){
       showNotification("Geometry invalid, please select a different area", type="error")
     }
@@ -231,7 +233,9 @@ get_village_points <- function(area, crs=4326, in_app=FALSE){
   if(in_app){progress$inc(1/2)}
 
   # only keep points inside object
-  sites =  sites[sf::st_within(sites, bbox_sf, sparse=F), ]
+  intersect_mat <- sf::st_intersects(sites, bbox_sf, sparse = FALSE)
+  intersect_any <- apply(intersect_mat, 1, any)
+  sites <- sites[intersect_any, ]
 
   if (!is.null(sites$name)) {
     sites <- sites %>%

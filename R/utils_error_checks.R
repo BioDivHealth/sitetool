@@ -40,7 +40,7 @@ validate_text_input <- function(input_value, session=NULL, input_id=NULL, limit=
 #' @noRd
 #'
 check_validity <- function(area, crs=4326){
-  if ("sf" %in% class(area)){
+  if (any(class(area) %in% c("sf", "sfc"))){
     bbox_sf = area
   } else if(length(area) == 4){
     bbox_sf = sf::st_as_sfc(sf::st_bbox(c(xmin=area[[1]],
@@ -53,7 +53,7 @@ check_validity <- function(area, crs=4326){
     return(NULL)
   }
 
-  if(!sf::st_is_valid(bbox_sf)){
+  if(!all(sf::st_is_valid(bbox_sf))){
     message('Area must be valid shape object.')
     return(NULL)
   }

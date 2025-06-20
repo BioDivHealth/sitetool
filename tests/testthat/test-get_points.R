@@ -112,14 +112,131 @@ test_that("get_points works with shapefile", {
   expect_true(length(points) == 0)
 })
 
+
+test_that("get_land_area works with multipolygon", {
+  poly1 <- sf::st_polygon(list(rbind(
+    c(-120, 35), c(-120, 36), c(-119, 36), c(-119, 35), c(-120, 35)
+  )))
+  poly2 <- sf::st_polygon(list(rbind(
+    c(-118, 35), c(-118, 36), c(-117, 36), c(-117, 35), c(-118, 35)
+  )))
+
+  # Combine into MULTIPOLYGON
+  multipoly <- sf::st_multipolygon(list(poly1, poly2))
+  shape <- sf::st_sfc(multipoly, crs = 4326)
+
+  # Run the function
+  result <- get_land_area(shape)
+
+  # Check result is valid and of correct type
+  expect_s3_class(result, "sfc")
+  expect_true(all(sf::st_is_valid(result)))
+  expect_true(length(result) > 0)
+})
+
+test_that("get_random_points works with multipolygon", {
+  poly1 <- sf::st_polygon(list(rbind(
+    c(-120, 35), c(-120, 36), c(-119, 36), c(-119, 35), c(-120, 35)
+  )))
+  poly2 <- sf::st_polygon(list(rbind(
+    c(-118, 35), c(-118, 36), c(-117, 36), c(-117, 35), c(-118, 35)
+  )))
+
+  # Combine into MULTIPOLYGON
+  multipoly <- sf::st_multipolygon(list(poly1, poly2))
+  shape <- sf::st_sfc(multipoly, crs = 4326)
+
+  # Run the function
+  result <- get_random_points(shape, n_points=10)
+  expect_true(nrow(result) == 10)
+})
+
+test_that("get_village_points works with multipolygon", {
+  testthat::skip_if_offline()
+  poly1 <- sf::st_polygon(list(rbind(
+    c(-120, 35), c(-120, 36), c(-119, 36), c(-119, 35), c(-120, 35)
+  )))
+  poly2 <- sf::st_polygon(list(rbind(
+    c(-118, 35), c(-118, 36), c(-117, 36), c(-117, 35), c(-118, 35)
+  )))
+
+  # Combine into MULTIPOLYGON
+  multipoly <- sf::st_multipolygon(list(poly1, poly2))
+  shape <- sf::st_sfc(multipoly, crs = 4326)
+
+  # Run the function
+  villages <- get_village_points(shape)
+  expect_true("Reward" %in% villages$site)
+})
+
+test_that("get_points handles multiple-row MULTIPOLYGON sf objects", {
+  # First MULTIPOLYGON (two disjoint squares)
+  poly1a <- sf::st_polygon(list(rbind(
+    c(-120, 35), c(-120, 36), c(-119, 36), c(-119, 35), c(-120, 35)
+  )))
+  poly1b <- sf::st_polygon(list(rbind(
+    c(-118, 35), c(-118, 36), c(-117, 36), c(-117, 35), c(-118, 35)
+  )))
+  multipoly1 <- sf::st_multipolygon(list(poly1a, poly1b))
+
+  # Second MULTIPOLYGON (another disjoint set)
+  poly2a <- sf::st_polygon(list(rbind(
+    c(-116, 35), c(-116, 36), c(-115, 36), c(-115, 35), c(-116, 35)
+  )))
+  poly2b <- sf::st_polygon(list(rbind(
+    c(-114, 35), c(-114, 36), c(-113, 36), c(-113, 35), c(-114, 35)
+  )))
+  multipoly2 <- sf::st_multipolygon(list(poly2a, poly2b))
+
+  # Combine into a 2-row sf object
+  shape <- sf::st_sf(
+    id = 1:2,
+    geometry = sf::st_sfc(multipoly1, multipoly2, crs = 4326)
+  )
+
+  # Run function
+  result <- get_random_points(shape, 10)
+  expect_true(nrow(result) == 10)
+
+})
+
+test_that("get_village_points handles multiple-row MULTIPOLYGON sf objects", {
+  testthat::skip_if_offline()
+  # First MULTIPOLYGON (two disjoint squares)
+  poly1a <- sf::st_polygon(list(rbind(
+    c(-120, 35), c(-120, 36), c(-119, 36), c(-119, 35), c(-120, 35)
+  )))
+  poly1b <- sf::st_polygon(list(rbind(
+    c(-118, 35), c(-118, 36), c(-117, 36), c(-117, 35), c(-118, 35)
+  )))
+  multipoly1 <- sf::st_multipolygon(list(poly1a, poly1b))
+
+  # Second MULTIPOLYGON (another disjoint set)
+  poly2a <- sf::st_polygon(list(rbind(
+    c(-116, 35), c(-116, 36), c(-115, 36), c(-115, 35), c(-116, 35)
+  )))
+  poly2b <- sf::st_polygon(list(rbind(
+    c(-114, 35), c(-114, 36), c(-113, 36), c(-113, 35), c(-114, 35)
+  )))
+  multipoly2 <- sf::st_multipolygon(list(poly2a, poly2b))
+
+  # Combine into a 2-row sf object
+  shape <- sf::st_sf(
+    id = 1:2,
+    geometry = sf::st_sfc(multipoly1, multipoly2, crs = 4326)
+  )
+
+  # Run function
+  result <- get_village_points(shape)
+  expect_true("Baker" %in% result$site)
+
+})
+
 test_that("get_village_points filters villages correctly", {
   testthat::skip_if_offline()
   bbox <- c(-85, 29, -82, 31)
   villages <- get_village_points(bbox)
   expect_true("Tallahassee" %in% villages$site)
-
-  # villages <- get_village_points(bbox, max_pop = 500)
-  # expect_false("Tallahassee" %in% villages$site)
 
   bbox <- c(0,0,0,0)
   points <- get_village_points(bbox)
