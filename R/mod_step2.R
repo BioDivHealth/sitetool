@@ -11,7 +11,7 @@ mod_step2_ui <- function(id) {
   ns <- NS(id)
   tagList(
     bslib::card(
-      bslib::layout_sidebar(
+      bslib::navset_card_tab(
         sidebar = bslib::sidebar(
 
           ## Site Type ##
@@ -73,10 +73,17 @@ mod_step2_ui <- function(id) {
           actionButton(ns("goStep2"), "Go"),
           downloadButton(ns("saveFile"), "Save List of Sites")
         ),
-        mod_core_mapping_ui(ns("core_mapping_2"))
+        bslib::nav_panel(
+          title = 'Map',
+          mod_core_mapping_ui(ns("core_mapping_2"))
+        ),
+        bslib::nav_panel(
+          title='Selected Sites',
+          DT::dataTableOutput(ns("selectSites"))
+        )
+      )
       )
     )
-  )
 }
 
 #' step2 Server Functions
@@ -110,6 +117,10 @@ mod_step2_server <- function(id, shape, lc_raster){
     # # Output number of potential sites (including input sites)
     output$siteCount <- renderText({
       nrow(sites())
+    })
+
+    output$selectSites <- DT::renderDT({
+      input_sites()
     })
 
     # Check uploaded data ------------------------------------------------------

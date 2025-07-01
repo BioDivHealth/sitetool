@@ -29,6 +29,7 @@ reset_map <- function(map, draw){
 map_points <- function(map, sites) {
 
   if (!is.null(sites) && nrow(sites) > 0) {
+
     map <- map %>%
       leaflet::clearMarkers()%>%
       leaflet::clearControls()%>%
