@@ -58,6 +58,7 @@ mod_step2_ui <- function(id) {
           ),
 
           ## Input Sites ##
+          bslib::input_switch(ns("add_points_mode"), "Select Points on Map", value = FALSE),
           radioButtons(ns('input_sites'), h6('Input Sites'),
                        choices = c("None" = "none",
                                    "Upload a CSV" = "csv"
@@ -89,59 +90,71 @@ mod_step2_ui <- function(id) {
 #' step2 Server Functions
 #'
 #' @noRd
-mod_step2_server <- function(id, shape, lc_raster){
-
+mod_step2_server <- function(id, shape, lc_raster) {
   moduleServer(id, function(input, output, session){
     ns <- session$ns
-    sites <- reactiveVal(NULL)
-    input_sites <- reactiveVal(NULL)
-    mapvals <- reactiveValues(sites=NULL, bbox=NULL, raster=NULL, sf=NULL, draw=FALSE)
+    # Remove sites reactiveVal, just use mapvals$sites
+    mapvals <- reactiveValues(sites=NULL, bbox=NULL, raster=NULL, sf=NULL, draw=FALSE, add_points=FALSE)
 
+    # Call map module, passing mapvals by reference
     mod_core_mapping_server("core_mapping_2", mapvals)
 
     observe({
-      mapvals$raster = lc_raster()
-      mapvals$sf = shape()
+      mapvals$raster <- lc_raster()
+      mapvals$sf <- shape()
     })
 
+    observeEvent(input$add_points_mode, {
+      mapvals$add_points = input$add_points_mode
+    })
+
+    # Reset sites when selection type or bbox changes
     observeEvent(list(input$selection_type, mapvals$bbox), {
-      mapvals$sites = NULL
+      mapvals$sites <- NULL
     })
 
-    # Error checking user input
+    # Validate num_sites input
     observeEvent(input$num_sites, {
       req(input$num_sites)
       validate_text_input(input$num_sites, session, "num_sites", 1000000)
     })
 
-    # # Output number of potential sites (including input sites)
+    # Output number of sites (including input sites)
     output$siteCount <- renderText({
-      nrow(sites())
+      req(mapvals$sites)
+      nrow(mapvals$sites)
     })
 
     output$selectSites <- DT::renderDT({
-      input_sites()
+      req(mapvals$sites)
+      mapvals$sites %>%
+        dplyr::filter(input_site == TRUE) %>%
+        sf::st_drop_geometry()
     })
 
-    # Check uploaded data ------------------------------------------------------
-
+    # Handle uploaded CSV file
     observeEvent(input$csvfile, {
       req(input$csvfile)
       tryCatch({
-        uploaded_data = read.csv(input$csvfile$datapath)
+        uploaded_data <- read.csv(input$csvfile$datapath)
+        if(!is.data.frame(uploaded_data)) stop("wrong file")
+        if(any(!c('site','longitude','latitude') %in% colnames(uploaded_data))) stop("incorrect columns")
 
-        # Check if the uploaded data is a dataframe
-        if (!is.data.frame(uploaded_data)) {
-          stop("wrong file")
+        # Convert to sf with geometry, add input_site TRUE and site_id
+        id <- uploaded_data %>%
+          dplyr::mutate(input_site = TRUE,
+                        site_id = paste0('input_', dplyr::row_number())) %>%
+          sf::st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+          dplyr::select(site, site_id, input_site)
+
+        if(!is.null(mapvals$sites)){
+          mapvals$sites <- rbind(id, mapvals$sites)
+        } else {
+          mapvals$sites <- id
         }
 
-        # Check for correct columns
-        if (any(!c('site', 'longitude', 'latitude') %in% colnames(uploaded_data))){
-          stop("incorrect columns")
-        }
-
-        input_sites(uploaded_data)
-      },  error = function(e) {
+      }, error = function(e) {
+        print(e)
         showNotification("Upload file is of incorrect type. Please upload a CSV with columns labeled site, longitude, and latitude.", type = "error")
         return(NULL)
       })
@@ -152,55 +165,51 @@ mod_step2_server <- function(id, shape, lc_raster){
         paste0("site_list.csv")
       },
       content = function(file){
-        outfile = sites()%>%
+        req(mapvals$sites)
+        outfile <- mapvals$sites %>%
           dplyr::mutate(longitude = sf::st_coordinates(.)[,1],
-                 latitude = sf::st_coordinates(.)[,2]) %>%
+                        latitude = sf::st_coordinates(.)[,2]) %>%
           sf::st_drop_geometry()
 
-        write.csv(outfile, file, row.names = F)
+        write.csv(outfile, file, row.names = FALSE)
       }
     )
 
-    # Step 2: Get points  ------------------------------------------------------
+    # Generate sites on goStep2 click
     observeEvent(input$goStep2, {
       req(mapvals$sf)
 
-      # Download sites within the bounding box
+      sites_filter <- NULL
       if(input$selection_type == 'village'){
-        sites_filter = get_village_points(mapvals$sf,
-                                          #as.numeric(input$city_pop)*1e3,
-                                          in_app=T)
-      }
-
-      if(input$selection_type == 'random'){
+        sites_filter <- get_village_points(mapvals$sf, in_app = TRUE)
+      } else if(input$selection_type == 'random'){
         req(input$num_sites)
-
-
-        sites_filter = get_random_points(mapvals$sf,
-                                   as.numeric(input$num_sites),
-                                   as.numeric(input$dist_road),
-                                   as.numeric(input$dist_city),
-                                   in_app=T)
+        sites_filter <- get_random_points(mapvals$sf,
+                                          as.numeric(input$num_sites),
+                                          as.numeric(input$dist_road),
+                                          as.numeric(input$dist_city),
+                                          in_app = TRUE)
       }
 
-      if(!is.null(input_sites())){
-        id = input_sites()
-        id$input_site= TRUE
-        id$site_id = paste0('input_',1:nrow(id))
-        id = sf::st_as_sf(id,
-                          coords = c("longitude", "latitude"),
-                          crs = "epsg:4326")%>%
-          dplyr::select(c(site, site_id, input_site))
-
-        sites_filter = rbind(id, sites_filter)
+      # Add uploaded input sites if any
+      if(!is.null(mapvals$sites)){
+        input_sites_df <- mapvals$sites %>%
+          dplyr::filter(input_site == TRUE)
+      } else {
+        input_sites_df <- NULL
       }
 
-      # store and return sites
-      mapvals$sites = sites_filter
-      sites(sites_filter)
+      if(!is.null(input_sites_df) && nrow(input_sites_df) > 0){
+        sites_filter <- rbind(input_sites_df, sites_filter)
+      }
+
+      mapvals$sites <- sites_filter
     })
-    return(reactive(sites()))
+
+    # Return reactive sites for upstream use if needed
+    return(reactive(mapvals$sites))
   })
+
 }
 
 ## To be copied in the UI

@@ -27,26 +27,30 @@ reset_map <- function(map, draw){
 
 
 map_points <- function(map, sites) {
-
   if (!is.null(sites) && nrow(sites) > 0) {
-
-    map <- map %>%
-      leaflet::clearMarkers()%>%
+    coords <- sf::st_coordinates(sites)
+    map %>%
       leaflet::clearControls()%>%
-      leaflet::addCircleMarkers(data = sites,
-                       lng = ~sf::st_coordinates(sites)[, 1],
-                       lat = ~sf::st_coordinates(sites)[, 2],
-                       popup = ~paste0("Site: ", site,
-                                       "<br>LAT: ", sf::st_coordinates(geometry)[,2],
-                                       "<br>LNG: ", sf::st_coordinates(geometry)[,1]),
-                       color = ~ifelse(input_site, "red", "blue"),  # Change color if needed
-                       radius = 5,
-                       fillOpacity = 0.8)%>%
+      leaflet::addCircleMarkers(
+        data = sites,
+        lng = coords[, 1],
+        lat = coords[, 2],
+        popup = paste0(
+          "<strong>Site: </strong>", sites$site,
+          "<br><strong>LAT: </strong>", round(coords[, 2], 5),
+          "<br><strong>LNG: </strong>", round(coords[, 1], 5)
+        ),
+        color = ifelse(sites$input_site, "red", "blue"),
+        radius = 5,
+        fillOpacity = 0.8
+      ) %>%
       leaflet::addLegend(
         position = "bottomright",
         colors = c("red", "blue"),
-        labels = c("Input Sites", "Additional Sites")
+        labels = c("Selected Sites", "Comparison Sites")
       )
+  } else {
+    map
   }
 }
 
