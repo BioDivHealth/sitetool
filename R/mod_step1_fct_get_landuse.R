@@ -1,116 +1,189 @@
-#' @title Download land use data from Copernicus Global Land Service
+calculate_3x3_tiles <- function(shape) {
+  if (!inherits(shape, "sf")) {
+    warning("Input must be an sf object", call. = FALSE)
+    return(NULL)
+  }
+  # Get bounding box
+  bbx <- sf::st_bbox(shape)
+
+  # Calculate tile bounds (each 3x3 degrees)
+  min_lon <- floor(bbx["xmin"] / 3) * 3
+  max_lon <- ceiling(bbx["xmax"] / 3) * 3 - 3
+  min_lat <- floor(bbx["ymin"] / 3) * 3
+  max_lat <- ceiling(bbx["ymax"] / 3) * 3 - 3
+
+  # If max < min, it's a point or tiny feature — force it to cover at least one tile
+  if (max_lon < min_lon) max_lon <- min_lon
+  if (max_lat < min_lat) max_lat <- min_lat
+
+  # Create tile grid
+  lon_vals <- seq(min_lon, max_lon, by = 3)
+  lat_vals <- seq(min_lat, max_lat, by = 3)
+
+  tiles <- expand.grid(lon = lon_vals, lat = lat_vals)
+
+  # Generate names like S48E036
+  tile_names <- apply(tiles, 1, function(row) {
+    lat <- row["lat"]
+    lon <- row["lon"]
+
+    lat_prefix <- if (lat < 0) "S" else "N"
+    lon_prefix <- if (lon < 0) "W" else "E"
+
+    lat_str <- sprintf("%02d", abs(lat))
+    lon_str <- sprintf("%03d", abs(lon))
+
+    paste0(lat_prefix, lat_str, lon_prefix, lon_str)
+  })
+
+  return(tile_names)
+}
+
+
+format_tile_name <- function(lat, lon, year=2019) {
+  lat_prefix <- ifelse(lat >= 0, "N", "S")
+  lon_prefix <- ifelse(lon >= 0, "E", "W")
+  lat_str <- sprintf("%02d", abs(lat))
+  lon_str <- sprintf("%03d", abs(lon))
+  paste0("ESACCI-LC-L4-LCCS-Map-100m-P1Y-", year, "-v2.1.1_", lat_prefix, lat_str, lon_prefix, lon_str, ".tif")
+}
+
+
+download_rast <- function(url, inapp=F){
+    r <- tryCatch({
+      terra::rast(url)
+    }, error = function(e) {
+      if (inapp) shiny::showNotification(paste("Failed to download tile:", t), type = "error")
+      return(NULL)
+    })
+    return(r)
+}
+
+
+crop_rast <- function(rast, shape, inapp=F){
+  cr <- tryCatch({
+    terra::crop(rast, shape)
+  }, error = function(e) {
+    if (inapp) shiny::showNotification(paste("Failed to crop tile:", t), type = "error")
+    return(NULL)
+  })
+  return(cr)
+}
+
+#' @title Download ESA WorldCover data
 #' @description
-#' Downloads 100 m resolution landcover data from the Copernicus Global Land
-#' Service e.g. (https://zenodo.org/records/4723921)
+#' Downloads 10 m resolution land cover data
 #'
 #' @param shape sf. sf object containing the area of interest
 #' @param inapp boolean. prints messages to shiny app if in app
 #' @return a SpatRaster of landuse for the shape area.
 #' @export
 
-get_landuse <- function(shape, inapp=F) {
+get_worldcover <- function(shape, tile_limit = 3, inapp = FALSE, coarse_res = 100) {
+  tiles <- calculate_3x3_tiles(shape)
 
-  if(is.null(check_validity(shape))){
+  raster_tiles <- NULL
+  i <- 1
+  n_steps <- length(tiles) + 3
+
+  if (length(tiles) > tile_limit && inapp) {
+    shiny::showNotification("Please select a smaller area or upload your own data.", type = "error")
     return(NULL)
   }
 
-  #determine 20 degree tiles covering entire shape
-  bbx <- sf::st_bbox(shape) / 20
-  min_x_tile <- floor(bbx["xmin"]) * 20
-  max_x_tile <- (ceiling(bbx["xmax"]) * 20) - 20
-  min_y_tile <- (floor(bbx["ymin"]) * 20) + 20
-  max_y_tile <- (ceiling(bbx["ymax"]) * 20)
-  x_all <- seq(from = min_x_tile, to = max_x_tile, 20)
-  y_all <- seq(from = min_y_tile, to = max_y_tile, 20)
-  tiles <- expand.grid(x_all, y_all)
-  colnames(tiles) <- c("x", "y")
-  tiles$x_str <- formatC(tiles$x, width = 4, format = "d", flag = "0+")
-  tiles$y_str <- formatC(tiles$y, width = 3, format = "d", flag = "0+")
-  tiles$y_str <- gsub("-", "S", tiles$y_str)
-  tiles$y_str <- gsub("\\+", "N", tiles$y_str)
-  tiles$x_str <- gsub("-", "W", tiles$x_str)
-  tiles$x_str <- gsub("\\+", "E", tiles$x_str)
-  tiles$url <- paste0(tiles$x_str, tiles$y_str)
+  for (t in tiles) {
+    if (inapp) incProgress(1/n_steps, detail = paste("Getting tiles:", i))
 
-  #check whether each tile contains part of the region of interest
-  #needed in case of multiple countries / empty tiles
-  valid_tiles <- NA
+    url <- paste0(
+      "https://esa-worldcover.s3.eu-central-1.amazonaws.com/",
+      "v200/2021/map/",
+      "ESA_WorldCover_10m_2021_v200_",
+      t,
+      "_Map.tif"
+    )
 
-  for (r in 1:nrow(tiles)){
-    t <- tiles[r,]
+    ras <- download_rast(url, inapp)
+    ras <- crop_rast(ras, shape, inapp)
 
-    tile_coords <- matrix(c(
-      t$x, t$y - 20,
-      t$x + 20, t$y - 20,
-      t$x + 20, t$y,
-      t$x, t$y,
-      t$x, t$y - 20
-    ), ncol = 2, byrow = TRUE)
+    if (!is.null(ras)) {
+      scale_factor <- round(coarse_res / 10)
 
-    tile_polygon <- sf::st_polygon(list(tile_coords))
-    tile_sf <- sf::st_sfc(tile_polygon, crs = 4326)
-    tile_sf <- sf::st_sf(geometry = tile_sf)
-    if(sf::st_is_valid(tile_sf)){
-      valid_tiles[r] <- sum(sf::st_intersects(shape, tile_sf) |> lengths())
-    }
-  }
-
-  tiles <- tiles[valid_tiles > 0,]
-
-    raster_tiles <- NULL
-    i = 1
-    n_steps <- length(tiles) + 3
-
-    if (length(tiles$url) > 1 & inapp) {
-      shiny::showNotification("Please select a smaller area or upload your own data.", type = "error")
-    } else {
-      raster_tiles <- NULL
-      i <- 1
-
-      for (t in tiles$url) {
-        if (inapp) incProgress(1/n_steps, detail = paste("Getting tiles:", i))
-
-        url <- paste0(
-          "https://globalland.vito.be/download/geotiff/land_cover/lcc_100m_v3_yearly/2015/20150101/",
-          t,
-          "_PROBAV_LC100_global_v3.0.1_2015-base_Discrete-Classification-map_EPSG-4326.tif"
-        )
-
-        ras <- tryCatch({
-          r <- try(terra::rast(url), silent=TRUE)
-          if (terra::is.empty(r)) stop("Raster object is empty or invalid.")
-          r <- terra::crop(r, shape)
-          r
-        }, error = function(e) {
-          return(NULL)
-        })
-
-        if (!is.null(ras)) {
-          if (is.null(raster_tiles)) {
-            raster_tiles <- ras
-          } else {
-            if (inapp) incProgress(1/n_steps, detail = "Merging tiles")
-            tryCatch({
-              raster_tiles <- terra::merge(raster_tiles, ras)
-            }, error = function(e) {
-              showNotification(paste("Merge failed for tile:", t), type = "error")
-            })
-          }
-        }
-
-        i <- i + 1
-      }
+      try({
+        # Aggregate using the modal function for categorical data.
+        ras_agg <- terra::aggregate(ras, fact = scale_factor, fun = 'modal', na.rm=T)
+      }, silent = TRUE)
 
       if (is.null(raster_tiles)) {
-        return(NULL)
+        raster_tiles <- ras_agg
+      } else {
+        if (inapp) incProgress(1/n_steps, detail = "Merging tiles")
+        tryCatch({
+          #ras_aligned <- terra::resample(ras_agg, raster_tiles, method = "near")
+          raster_tiles <- terra::merge(raster_tiles, ras_agg)
+        }, error = function(e) {
+          if (inapp) showNotification(paste("Merge failed for tile:", t), type = "error")
+        })
       }
-
-      # Apply labels
-      levels(raster_tiles) <- raster_cats %>%
-        subset(product == 'Copernicus Global Land Cover') %>%
-        dplyr::select(c(value, subcover))
     }
 
-    return(raster_tiles)
+    i <- i + 1
+  }
+
+  if(!is.null(raster_tiles)){
+    color_table <- data.frame(
+      code = c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100),
+      cover = c("No Data", "Treecover", "Shrubland", "Grassland", "Cropland", "Builtup",
+               "Bare/Sparse", "Snow/Ice", "Water", "Wetland", "Mangroves", "Moss/Lichen"),
+      color = c("#000000", "#006400", "#ffbb22", "#ffff4c", "#f096ff", "#fa0000",
+                "#b4b4b4", "#f0f0f0", "#0064c8", "#0096a0", "#00cf75", "#fae6a0")
+    )
+  #  raster_tiles <- as.factor(raster_tiles)
+    levels(raster_tiles) <- color_table%>%dplyr::select(code, cover)
+    terra::coltab(raster_tiles) <- color_table%>%dplyr::select(code, color)
+  }
+
+  return(raster_tiles)
 }
+
+
+download_elevation <- function(shape, inapp=F) {
+  if (!inherits(shape, "sf")) {
+    warning("Input must be an sf object", call. = FALSE)
+    return(NULL)
+  }
+
+  # Download elevation raster for bbox at specified zoom
+  tryCatch({
+    elev_raster <- geodata::elevation_global(res = 2.5, path=tempdir())
+  }, error = function(e){
+    if(inapp){showNotification(paste('Failed to download elevation data.'), type='error')}
+    return(NULL)
+  })
+
+  # Crop elevation raster to shape
+  elev_cropped <- crop_rast(elev_raster, shape)
+
+  return(elev_cropped)
+}
+
+download_footprint <- function(shape, year=2009, inapp=F) {
+  if (!inherits(shape, "sf")) {
+    warning("Input must be an sf object", call. = FALSE)
+    return(NULL)
+  }
+
+  # Download elevation raster for bbox at specified zoom
+  tryCatch({
+    foot_raster <- geodata::footprint(year=year, path=tempdir())
+  }, error = function(e){
+    if(inapp){showNotification(paste('Failed to download elevation data.'), type='error')}
+    return(NULL)
+  })
+
+  # Crop elevation raster to shape
+  footprint <- crop_rast(foot_raster, shape)
+
+  return(footprint)
+}
+
 

@@ -30,7 +30,6 @@ map_points <- function(map, sites) {
   if (!is.null(sites) && nrow(sites) > 0) {
     coords <- sf::st_coordinates(sites)
     map %>%
-      leaflet::clearControls()%>%
       leaflet::addCircleMarkers(
         data = sites,
         lng = coords[, 1],
@@ -47,7 +46,7 @@ map_points <- function(map, sites) {
       leaflet::addLegend(
         position = "bottomright",
         colors = c("red", "blue"),
-        labels = c("Selected Sites", "Comparison Sites")
+        labels = c("Selected Sites", "Generated Sites")
       )
   } else {
     map

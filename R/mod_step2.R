@@ -17,7 +17,7 @@ mod_step2_ui <- function(id) {
           ## Site Type ##
           title = 'Step 2. Generate a list of potential sites.',
           width = 350,
-          selectInput(ns('selection_type'), h6('Please select a type of site:'), choices = c("random", "village")),
+          selectInput(ns('selection_type'), h6('Please select a sampling procedure:'), choices = c("random", "village")),
 
           # Params for random type
           conditionalPanel(
@@ -58,11 +58,11 @@ mod_step2_ui <- function(id) {
           ),
 
           ## Input Sites ##
-          bslib::input_switch(ns("add_points_mode"), "Select Points on Map", value = FALSE),
-          radioButtons(ns('input_sites'), h6('Input Sites'),
+
+          radioButtons(ns('input_sites'), h6("Please input any selected sites:"),
                        choices = c("None" = "none",
-                                   "Upload a CSV" = "csv"
-                                   # "Select on map" = "map"
+                                   "Upload a CSV" = "csv",
+                                    "Select on map" = "add_points_mode"
                        )),
           conditionalPanel(
             ns = NS(id),
@@ -93,19 +93,18 @@ mod_step2_ui <- function(id) {
 mod_step2_server <- function(id, shape, lc_raster) {
   moduleServer(id, function(input, output, session){
     ns <- session$ns
-    # Remove sites reactiveVal, just use mapvals$sites
     mapvals <- reactiveValues(sites=NULL, bbox=NULL, raster=NULL, sf=NULL, draw=FALSE, add_points=FALSE)
 
-    # Call map module, passing mapvals by reference
     mod_core_mapping_server("core_mapping_2", mapvals)
 
+    # add inputs
     observe({
       mapvals$raster <- lc_raster()
       mapvals$sf <- shape()
     })
 
-    observeEvent(input$add_points_mode, {
-      mapvals$add_points = input$add_points_mode
+    observeEvent(input$input_sites == 'add_points_mode', {
+      mapvals$add_points = TRUE
     })
 
     # Reset sites when selection type or bbox changes
@@ -137,7 +136,7 @@ mod_step2_server <- function(id, shape, lc_raster) {
       req(input$csvfile)
       tryCatch({
         uploaded_data <- read.csv(input$csvfile$datapath)
-        if(!is.data.frame(uploaded_data)) stop("wrong file")
+
         if(any(!c('site','longitude','latitude') %in% colnames(uploaded_data))) stop("incorrect columns")
 
         # Convert to sf with geometry, add input_site TRUE and site_id

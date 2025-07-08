@@ -40,6 +40,28 @@ test_that("createLCDataFrame skips invalid areas", {
 
 })
 
+test_that("createLCDataFrame works with worldcover", {
+  skip_on_cran()
+  skip_if_offline()
+
+  # Create a small test polygon in known tile
+  shape <- sf::st_as_sf(sf::st_sfc(
+    sf::st_polygon(list(rbind(c(30.0, 0.0), c(30.1, 0.0), c(30.1, 0.1), c(30.0, 0.1), c(30.0, 0.0)))),
+    crs = 4326
+  ))
+
+  # Run function with expected coarse resolution (assuming your function supports it)
+  r <- get_worldcover(shape, tile_limit = 5, inapp = FALSE, coarse_res = 100)
+
+  point <- sf::st_sfc(sf::st_point(c(30.05, 0.05)), crs=4326)
+  sample_sf <- sf::st_sf(site = "A", site_id = "A1", input_site = TRUE, geometry = point)
+
+  out = createLCDataFrame(sample_sf, r, 500)
+
+  expect_true(all(out$cover %in% c('Builtup', 'Grassland', 'Treecover', 'Water', 'Wetland')))
+
+})
+
 # Test continuous dataframe
 test_that("createContDataFrame returns a dataframe", {
   result <- createContDataFrame(sample_sf, sample_raster, dist = 1000, progress = FALSE)

@@ -57,9 +57,9 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
 
         } else {
           r = lc_data()
-          levels(r) = raster_cats %>%
-            subset(product == product())%>%
-            dplyr::select(c('value', 'cover'))
+        #  levels(r) = raster_cats %>%
+         #   subset(product == product())%>%
+        #    dplyr::select(c('value', 'cover'))
           out_df <- createLCDataFrame(sites(), r = r, dist = input$radius, progress = TRUE)
         }
 

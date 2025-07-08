@@ -2,14 +2,20 @@
 # Helper Functions ------------------------------------------------------------
 
 # Creates a buffer around a point location
-getCroppedArea <- function(place, dist=1000){
+getCroppedArea <- function(place, dist = 1000, crs = 4326) {
+  # Convert input to sf object
+  place_sf <- sf::st_as_sf(place)
 
-  crop = place%>%
-    terra::vect()%>%
-    terra::centroids()%>%
-    terra::buffer(width=dist)%>%
-    sf::st_as_sf()%>%
-    sf::st_set_crs(4326)
+  # Get UTM zone from longitude
+  lon <- sf::st_coordinates(place_sf)[1, 1]
+  utm_zone <- floor((lon + 180) / 6) + 1
+  utm_crs <- paste0("EPSG:", 32600 + utm_zone)
+
+  # Project to UTM, buffer in meters, reproject to original CRS
+  crop <- place_sf %>%
+    sf::st_transform(utm_crs) %>%
+    sf::st_buffer(dist) %>%
+    sf::st_transform(crs)
 
   return(crop)
 }

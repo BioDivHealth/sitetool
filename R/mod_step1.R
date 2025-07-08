@@ -47,26 +47,16 @@ mod_step1_ui <- function(id) {
           ),
 
           ## Input Type ##
-          radioButtons(ns('upload'), h6('Please select a raster data source:'),
-                       choices = c("Default" = FALSE, "Upload a file" = TRUE)),
+          selectInput(ns('product'),
+                      h6('Please select a raster data source:'),
+                      choices = c('ESA WorldCover - 10m',  'SRTM Elevation - 2.5sec', 'Human Footprint 2009 - 30sec', 'Upload a file')
+          ),
 
           conditionalPanel(
             ns=NS(id),
-            condition = "input.upload == 'TRUE'",
+            condition = "input.product == 'Upload a file'",
             fileInput(ns("rastfile"), h6("Upload a GeoTIFF covering your region of interest:")),
-            selectInput(ns('product'),
-                        'Landcover Product:',
-                        choices = c('Copernicus Global Land Cover', 'ESA WorldCover',  'Dynamic World', 'Climate/NDVI/DEM' = 'Climate/NDVI'))
           ),
-
-          conditionalPanel(
-            ns=NS(id),
-            condition = "input.upload == 'FALSE'",
-            selectInput(ns('product'),
-                        'Landcover Product:',
-                        choices = c('Copernicus Global Land Cover'))
-          ),
-
 
           actionButton(ns("goStep1"), "Go"),
           downloadButton(ns("saveFile"), "Save Raster")
@@ -167,7 +157,7 @@ mod_step1_server <- function(id){
       bbox_sf = mapvals$sf%>%sf::st_buffer(2)
 
       # Load raster:
-      if (input$upload) {
+      if (input$product == 'Upload a file') {
         withProgress(message = 'Uploading raster', value = 0, {
           tryCatch({
             # Check if file is uploaded
@@ -191,7 +181,7 @@ mod_step1_server <- function(id){
 
             # Reproject raster if necessary
             if (!terra::same.crs(r, "+proj=longlat")) {
-              incProgress(1/2, detail = paste("Reprojecting raster"))
+              incProgress(1/2, detail = paste("Reprojecting raster to EPSG:4326"))
               r <- terra::project(r, 'EPSG:4326')
             }
 
@@ -204,7 +194,7 @@ mod_step1_server <- function(id){
             r <- terra::crop(r, bbox_sf)
 
             # Assign levels for raster categories if applicable
-            if (input$product != 'Climate/NDVI') {
+            if (input$product == 'Climate/NDVI') {
               tryCatch({
                 levels(r) <- raster_cats %>%
                   subset(product == input$product) %>%
@@ -229,8 +219,17 @@ mod_step1_server <- function(id){
         })
 
       } else {
-        withProgress(message = 'Downloading landcover data', value = 0, {
-          r <- get_landuse(bbox_sf, inapp=T)
+        withProgress(message = 'Downloading raster data', value = 0, {
+          if(input$product == 'ESA WorldCover - 10m'){
+            r <- get_worldcover(bbox_sf, inapp=T)
+          }
+          if(input$product == 'SRTM Elevation - 2.5sec'){
+            r <- download_elevation(bbox_sf, inapp=T)
+          }
+          if(input$product == 'Human Footprint 2009 - 30sec'){
+            r <- download_footprint(bbox_sf, inapp=T)
+          }
+
           if(is.null(r)){
             showNotification("Failed to download data, please check your internet connection or select a smaller area.", type = "error")
 

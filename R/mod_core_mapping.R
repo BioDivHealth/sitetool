@@ -76,8 +76,6 @@ mod_core_mapping_server <- function(id, common){
       # Add or update site markers
       if (!is.null(common$sites) && nrow(common$sites) > 0) {
         proxy %>% map_points(common$sites)
-      } else {
-        proxy %>% leaflet::clearMarkers() %>% leaflet::clearControls()
       }
     })
 
