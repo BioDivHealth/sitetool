@@ -139,6 +139,44 @@ test_that("get_worldcover returns coarser raster at expected resolution", {
 })
 
 
+test_that("get_worldcover correctly merges tiles", {
+  skip_on_cran()
+  skip_if_offline()
+
+  xmin <- -86.333077
+  ymin <- 29.839937
+  xmax <- -84.412444
+  ymax <- 31.175063
+
+  # Create matrix of coordinates for polygon
+  bbox_coords <- matrix(
+    c(
+      xmin, ymin,
+      xmax, ymin,
+      xmax, ymax,
+      xmin, ymax,
+      xmin, ymin  # Close the polygon
+    ),
+    ncol = 2,
+    byrow = TRUE
+  )
+
+  # Create sf polygon object
+  bbox_poly <- sf::st_polygon(list(bbox_coords)) %>%
+    sf::st_sfc(crs = 4326) %>%
+    sf::st_sf()
+
+  r = get_worldcover(bbox_poly, inapp=F, coarse_res=10)
+
+  e <- terra::ext(r)
+  tol <- 0.1
+
+  expect_lt(abs(xmin - e$xmin), tol)
+  expect_lt(abs(xmax - e$xmax), tol)
+ # expect_lt(abs(ymin - e$ymin), tol)
+})
+
+
 test_that("color table is assigned properly", {
   skip_on_cran()
   skip_if_offline()

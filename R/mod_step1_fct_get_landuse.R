@@ -107,19 +107,21 @@ get_worldcover <- function(shape, tile_limit = 3, inapp = FALSE, coarse_res = 10
 
     if (!is.null(ras)) {
       scale_factor <- round(coarse_res / 10)
+      if(scale_factor > 1){
+        try({
+          # Aggregate using the modal function for categorical data.
+          ras_agg <- terra::aggregate(ras, fact = scale_factor, fun = 'modal', na.rm=T)
+        }, silent = TRUE)
+      }
 
-      try({
-        # Aggregate using the modal function for categorical data.
-        ras_agg <- terra::aggregate(ras, fact = scale_factor, fun = 'modal', na.rm=T)
-      }, silent = TRUE)
 
       if (is.null(raster_tiles)) {
         raster_tiles <- ras_agg
       } else {
         if (inapp) incProgress(1/n_steps, detail = "Merging tiles")
         tryCatch({
-          #ras_aligned <- terra::resample(ras_agg, raster_tiles, method = "near")
-          raster_tiles <- terra::merge(raster_tiles, ras_agg)
+         # ras_aligned <- terra::resample(ras_agg, raster_tiles, method = "near")
+          raster_tiles <- terra::merge(raster_tiles, ras_agg, method = "near")
         }, error = function(e) {
           if (inapp) showNotification(paste("Merge failed for tile:", t), type = "error")
         })
