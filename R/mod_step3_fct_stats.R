@@ -46,36 +46,40 @@ generate_text <- function(data, cat) {
 }
 
 
-# Function to generate interactive plots for each cover
+#' Plot interactive boxplot of raster statistics by group
+#'
+#' Creates a horizontal interactive boxplot with `ggplot2` and `ggiraph`, showing raster summary statistics by group (e.g., "Input Sites" vs "All Sites"). Points are jittered and support tooltips and interactivity.
+#'
+#' @param data A data frame containing columns: `group`, `value`, `site`, `site_id`, `point_size`, and `point_alpha`.
+#' @param title A character string for the plot title.
+#' @param selected_site_id Optional. A site ID to highlight (not currently active unless the color logic is uncommented).
+#'
+#' @return A `ggiraph` HTML widget (interactive plot object).
+#'
+#' @import ggplot2
+#' @import ggiraph
+#' @export
 generate_ggplot <- function(data, cat, measure) {
   title <- paste(gsub("\\b(\\w)", "\\U\\1", cat, perl = TRUE),
                  gsub("\\b(\\w)", "\\U\\1", measure, perl = TRUE))
 
 
     p <- ggplot2::ggplot() +
-      ggdist::stat_halfeye(
-        data = data%>%dplyr::filter(input_site == FALSE),
-        ggplot2::aes(x = group, y = value, fill = color),
-        adjust = .7,
-        width = 5,
-        .width = c(0.5, 0.8),
-        justification = -.1,
-        point_colour = NA
-      ) +
       ggplot2::geom_boxplot(
         data = data,
         ggplot2::aes(x = group, y = value),
-        width = 0.7,
+        width = 0.2,
         outlier.shape = NA
       ) +
       ggiraph::geom_point_interactive(
         data = data,
-        ggplot2::aes(x = group, y = value,
-            #         color = ifelse(is.null(selected_site_id) | site_id != selected_site_id, group, "highlight"),
-            tooltip = site,
-            data_id = site_id),
-        size = data$point_size,
-        alpha = data$point_alpha,
+        ggplot2::aes(x = group,
+                     y = value,
+            #       color = ifelse(is.null(selected_site_id) | site_id != selected_site_id, group, "highlight"),
+                    tooltip = site,
+                    data_id = site_id),
+                   # size = data$point_size,
+                    #alpha = data$point_alpha),
         position = ggplot2::position_jitter(seed = 1, width = .3)
       ) +
       ggplot2::scale_fill_identity() +
@@ -91,7 +95,7 @@ generate_ggplot <- function(data, cat, measure) {
 }
 
 
-# # Interactive portion using girafe
+# Interactive portion using girafe
 generate_plot <- function(data, cat, measure){
   p = generate_ggplot(data, cat, measure)
 
@@ -99,7 +103,8 @@ generate_plot <- function(data, cat, measure){
     ggobj = p,
     options = list(
       ggiraph::opts_hover(css = "fill-opacity:1;fill:yellow;cursor:pointer;"),
-      ggiraph::opts_selection(type = "single")
+      ggiraph::opts_selection(type = "single", only_shiny=FALSE)
     )
   )
 }
+

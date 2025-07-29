@@ -61,8 +61,9 @@ mod_step2_ui <- function(id) {
 
           radioButtons(ns('input_sites'), h6("Please input any selected sites:"),
                        choices = c("None" = "none",
-                                   "Upload a CSV" = "csv",
-                                    "Select on map" = "add_points_mode"
+                                   "Select on map" = "add_points_mode",
+                                   "Upload a CSV" = "csv"
+
                        )),
           conditionalPanel(
             ns = NS(id),
