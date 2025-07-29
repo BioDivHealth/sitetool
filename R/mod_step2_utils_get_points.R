@@ -118,6 +118,18 @@ check_distance <- function(points, shape, distance){
 #' @export get_random_points
 
 get_random_points <- function(area, n_points, road_dist=0, city_dist=0, crs=4326, in_app=FALSE){
+  if(n_points < 1){
+    empty_df <- sf::st_sf(
+      data.frame(
+        site = integer(),
+        site_id = character(),
+        input_site = logical(),
+        geometry = sf::st_sfc(crs = 4326)  # empty geometry column with CRS
+      )
+    )
+    return(empty_df)
+  }
+
 
   # Create a progress object if in shiny
   if(in_app){

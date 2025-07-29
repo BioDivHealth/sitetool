@@ -60,6 +60,12 @@ test_that("get_random_points generates the correct number of points", {
 
   bbox <- 'aaaa'
   expect_message(get_random_points(bbox, n_points = 10), "Area must be shape object or bounding box.")
+
+  points <- get_random_points(bbox, n_points = 0)
+  expect_true(nrow(points) == 0)
+
+  points <- get_random_points(bbox, n_points = -5)
+  expect_true(nrow(points) == 0)
 })
 
 test_that("get_points works with shapefile", {

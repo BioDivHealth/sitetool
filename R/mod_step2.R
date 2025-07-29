@@ -202,7 +202,7 @@ mod_step2_server <- function(id, shape, lc_raster) {
         sites_filter <- rbind(input_sites_df, sites_filter)
       }
 
-      mapvals$sites <- sites_filter
+      mapvals$sites <- rbind(mapvals$sites, sites_filter)
     })
 
     # Return reactive sites for upstream use if needed

@@ -52,16 +52,8 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
       req(lc_data())
 
       withProgress(message = "Calculating landcover values", value = 0, {
-        if (product() == 'Climate/NDVI') {
-          out_df <- createContDataFrame(sites(), raster = lc_data(), dist = input$radius, progress = TRUE)
 
-        } else {
-          r = lc_data()
-        #  levels(r) = raster_cats %>%
-         #   subset(product == product())%>%
-        #    dplyr::select(c('value', 'cover'))
-          out_df <- createLCDataFrame(sites(), r = r, dist = input$radius, progress = TRUE)
-        }
+        out_df <- siteRasterStats(sites(), r = lc_data(), dist = input$radius, progress = TRUE)
 
         sites_xy <- sites() %>%
           dplyr::mutate(longitude = sf::st_coordinates(.)[,1],
@@ -71,7 +63,7 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
 
         # Add x and y of sites to dataframe
         out_df <- out_df%>%
-          dplyr::left_join(sites_xy, by=c("site_id"))
+          dplyr::left_join(sites_xy, by=c("site", "site_id", "input_site"))
 
         # Add product being used
         out_df$product = product()

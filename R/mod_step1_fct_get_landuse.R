@@ -110,18 +110,18 @@ get_worldcover <- function(shape, tile_limit = 3, inapp = FALSE, coarse_res = 10
       if(scale_factor > 1){
         try({
           # Aggregate using the modal function for categorical data.
-          ras_agg <- terra::aggregate(ras, fact = scale_factor, fun = 'modal', na.rm=T)
+          ras <- terra::aggregate(ras, fact = scale_factor, fun = 'modal', na.rm=T)
         }, silent = TRUE)
       }
 
 
       if (is.null(raster_tiles)) {
-        raster_tiles <- ras_agg
+        raster_tiles <- ras
       } else {
         if (inapp) incProgress(1/n_steps, detail = "Merging tiles")
         tryCatch({
          # ras_aligned <- terra::resample(ras_agg, raster_tiles, method = "near")
-          raster_tiles <- terra::merge(raster_tiles, ras_agg, method = "near")
+          raster_tiles <- terra::merge(raster_tiles, ras, method = "near")
         }, error = function(e) {
           if (inapp) showNotification(paste("Merge failed for tile:", t), type = "error")
         })
@@ -147,7 +147,15 @@ get_worldcover <- function(shape, tile_limit = 3, inapp = FALSE, coarse_res = 10
   return(raster_tiles)
 }
 
-
+#' Download Elevation Raster
+#'
+#' Downloads and crops a global elevation raster (2.5 arc-min resolution) to the extent of an sf object.
+#'
+#' @param shape An `sf` object defining the area of interest.
+#' @param inapp Logical. If `TRUE`, shows a notification in a Shiny app upon failure.
+#'
+#' @return A cropped elevation raster (`SpatRaster`).
+#' @export
 download_elevation <- function(shape, inapp=F) {
   if (!inherits(shape, "sf")) {
     warning("Input must be an sf object", call. = FALSE)
@@ -168,6 +176,17 @@ download_elevation <- function(shape, inapp=F) {
   return(elev_cropped)
 }
 
+
+#' Download Human Footprint Raster
+#'
+#' Downloads and crops a global human footprint raster to the extent of an sf object.
+#'
+#' @param shape An `sf` object defining the area of interest.
+#' @param year Numeric year for the footprint dataset (default = 2009).
+#' @param inapp Logical. If `TRUE`, shows a notification in a Shiny app upon failure.
+#'
+#' @return A cropped footprint raster (`SpatRaster`).
+#' @export
 download_footprint <- function(shape, year=2009, inapp=F) {
   if (!inherits(shape, "sf")) {
     warning("Input must be an sf object", call. = FALSE)
