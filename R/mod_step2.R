@@ -11,87 +11,94 @@ mod_step2_ui <- function(id) {
   ns <- NS(id)
   tagList(
     bslib::card(
-      bslib::navset_card_tab(
-        sidebar = bslib::sidebar(
+        bslib::layout_sidebar(
+          sidebar = bslib::sidebar(
+            ## Site Type ##
+            title = 'Step 2. Generate a list of potential sites.',
+            width = 350,
+            selectInput(ns('selection_type'), h6('Please select a sampling procedure:'), choices = c("random", "village")),
 
-          ## Site Type ##
-          title = 'Step 2. Generate a list of potential sites.',
-          width = 350,
-          selectInput(ns('selection_type'), h6('Please select a sampling procedure:'), choices = c("random", "village")),
+            # Params for random type
+            conditionalPanel(
+              ns=NS(id),
+              condition = "input.selection_type == 'random'",
+              fluidRow(
+                column(4, tags$label("Number of sites:")),
+                column(8, textInput(ns('num_sites'), label = NULL, value = 100, placeholder = "Enter number of sites"))
+              ),
+              fluidRow(
+                column(4, tags$label("Distance from city (km)")),
+                column(8, sliderInput(ns('dist_city'),  label = NULL, min = 0, max = 10, value = 0))
+              ),
+              fluidRow(
+                column(4, tags$label("Distance from main road (m)")),
+                column(8, sliderInput(ns('dist_road'), label = NULL, min = 0, max = 2000, value = 0))
+              ),
+            ),
 
-          # Params for random type
-          conditionalPanel(
-            ns=NS(id),
-            condition = "input.selection_type == 'random'",
-            fluidRow(
-              column(4, tags$label("Number of sites:")),
-              column(8, textInput(ns('num_sites'), label = NULL, value = 100, placeholder = "Enter number of sites"))
+            # Params for village type
+            conditionalPanel(
+              ns=NS(id),
+              condition = "input.selection_type == 'village'",
+              fluidRow(
+                column(4, tags$label('Number of sites:')),
+                column(8, textOutput(ns("siteCount")))
+              )
+              # fluidRow(
+              #   column(4, tags$label("Max city population")),
+              #   column(8, sliderInput(ns('city_pop'),
+              #                         label = NULL,
+              #                         min = 0,
+              #                         max = 1000000,
+              #                         step = 100,
+              #                         value = 10000)
+              #   )
+              # )
             ),
-            fluidRow(
-              column(4, tags$label("Distance from city (km)")),
-              column(8, sliderInput(ns('dist_city'),  label = NULL, min = 0, max = 10, value = 0))
+
+            ## Input Sites ##
+
+            radioButtons(ns('input_sites'), h6("Please input any selected sites:"),
+                         choices = c("None" = "none",
+                                     "Select on map" = "add_points_mode",
+                                     "Upload a CSV" = "csv"
+
+                         )),
+            conditionalPanel(
+              ns = NS(id),
+              condition = "input.input_sites == 'csv'",
+              fileInput(ns("csvfile"),
+                        label = h6("Upload a CSV of potential sites:"),
+                        accept = c(".csv"))
             ),
-            fluidRow(
-              column(4, tags$label("Distance from main road (m)")),
-              column(8, sliderInput(ns('dist_road'), label = NULL, min = 0, max = 2000, value = 0))
-            ),
+            actionButton(ns("goStep2"), "Go"),
+            downloadButton(ns("saveFile"), "Save List of Sites")
+          ),
+        mod_core_mapping_ui(ns("core_mapping_2")),
+        div(
+          style = "display: flex; align-items: center; gap: 15px;",
+
+          shinyWidgets::switchInput(
+            inputId = ns("toggle_raster"),
+            label = "Show Raster",
+            onLabel = "On",
+            offLabel = "Off",
+            value = TRUE,
+            labelWidth = "100px"
           ),
 
-          # Params for village type
-          conditionalPanel(
-            ns=NS(id),
-            condition = "input.selection_type == 'village'",
-            fluidRow(
-              column(4, tags$label('Number of sites:')),
-              column(8, textOutput(ns("siteCount")))
-            )
-            # fluidRow(
-            #   column(4, tags$label("Max city population")),
-            #   column(8, sliderInput(ns('city_pop'),
-            #                         label = NULL,
-            #                         min = 0,
-            #                         max = 1000000,
-            #                         step = 100,
-            #                         value = 10000)
-            #   )
-            # )
-          ),
-
-          ## Input Sites ##
-
-          radioButtons(ns('input_sites'), h6("Please input any selected sites:"),
-                       choices = c("None" = "none",
-                                   "Select on map" = "add_points_mode",
-                                   "Upload a CSV" = "csv"
-
-                       )),
-          conditionalPanel(
-            ns = NS(id),
-            condition = "input.input_sites == 'csv'",
-            fileInput(ns("csvfile"),
-                      label = h6("Upload a CSV of potential sites:"),
-                      accept = c(".csv"))
-          ),
-          actionButton(ns("goStep2"), "Go"),
-          downloadButton(ns("saveFile"), "Save List of Sites")
-        ),
-        bslib::nav_panel(
-          title = 'Map',
-          mod_core_mapping_ui(ns("core_mapping_2"))
-        ),
-        bslib::nav_panel(
-          title='Selected Sites',
-          DT::dataTableOutput(ns("selectSites"))
+          actionButton(ns("clear_generated"), "Clear Generated Points", icon = icon("eraser")),
+          actionButton(ns("clear_selected"), "Clear Selected Points", icon = icon("eraser"))
         )
       )
-      )
     )
+  )
 }
 
 #' step2 Server Functions
 #'
 #' @noRd
-mod_step2_server <- function(id, shape, lc_raster) {
+mod_step2_server <- function(id, shape, lc_raster, updatedSites) {
   moduleServer(id, function(input, output, session){
     ns <- session$ns
     mapvals <- reactiveValues(sites=NULL, bbox=NULL, raster=NULL, sf=NULL, draw=FALSE, add_points=FALSE)
@@ -104,8 +111,26 @@ mod_step2_server <- function(id, shape, lc_raster) {
       mapvals$sf <- shape()
     })
 
-    observeEvent(input$input_sites == 'add_points_mode', {
-      mapvals$add_points = TRUE
+    observe({
+      req(updatedSites())
+
+      site_list <- updatedSites() %>%
+        dplyr::select(site, site_id, input_site, longitude, latitude) %>%
+        dplyr::distinct() %>%
+        sf::st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
+
+
+      if(!is.null(mapvals$sites) && !identical(site_list, mapvals$sites)){
+        mapvals$sites <- site_list
+      }
+    })
+
+    observeEvent(input$input_sites, {
+      if(input$input_sites == 'add_points_mode'){
+        mapvals$add_points = TRUE
+      } else{
+        mapvals$add_points = FALSE
+      }
     })
 
     # Reset sites when selection type or bbox changes
@@ -117,6 +142,25 @@ mod_step2_server <- function(id, shape, lc_raster) {
     observeEvent(input$num_sites, {
       req(input$num_sites)
       validate_text_input(input$num_sites, session, "num_sites", 1000000)
+    })
+
+    observeEvent(input$clear_generated, {
+      mapvals$sites <- mapvals$sites%>%
+        dplyr::filter(input_site == TRUE)
+    })
+
+    observeEvent(input$clear_selected, {
+      mapvals$sites <- mapvals$sites%>%
+        dplyr::filter(input_site == FALSE)
+    })
+
+    observeEvent(input$toggle_raster, {
+        if(input$toggle_raster){
+          mapvals$raster = lc_raster()
+        }
+      else{
+        mapvals$raster = NULL
+      }
     })
 
     # Output number of sites (including input sites)

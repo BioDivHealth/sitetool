@@ -14,7 +14,7 @@ mod_step1_ui <- function(id) {
       bslib::layout_sidebar(
         class="p-3 border border-top-0 rounded-bottom",
         sidebar = bslib::sidebar(
-          title = "Step 1. Select a region of interest and landcover data source.",
+          title = "Step 1. Select a region of interest and raster data source.",
           width = 350,
 
           ## Input Type ##

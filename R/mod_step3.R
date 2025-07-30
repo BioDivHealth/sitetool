@@ -17,22 +17,40 @@ mod_step3_ui <- function(id) {
         width = 350,
 
         numericInput(ns("radius"),
-                     h6("Enter distance from each site center to analyze landcover data (meters):"),
+                     h6("Enter distance from each site center to analyze raster data (meters):"),
                      min = 1,
                      value = 1000,
                      max = 100000),
 
         actionButton(ns("goStep3"), "Go"),
-        selectInput(ns("measure"), h6("Select a landcover measure to compare"), ""),
-        downloadButton(ns("saveFile"), "Save Dataset")
+        selectInput(ns("measure"), h6("Select a landcover measure to compare"), "")
       ),
       bslib::nav_panel(
-        title = 'Comparison Plot',
-        ggiraph::girafeOutput(ns("compPlot"))
+        title = 'Summary Plot',
+        tagList(
+          tags$div(
+            style = "color: red; text-align: center; margin-bootm: 10px; font-style: italic;",
+            "Click on a point in the plot to switch between a selected and generated site."),
+          ggiraph::girafeOutput(ns("compPlot"), height = "800px")
+        )
       ),
       bslib::nav_panel(
-        title='Dataset',
-        DT::dataTableOutput(ns("lcData"))
+        title='Statistical Comparison',
+        uiOutput(ns('stats'), inline = TRUE)
+      ),
+      bslib::nav_panel(
+        title='Selected Sites',
+        tagList(
+          DT::dataTableOutput(ns("selectedTable")),
+          downloadButton(ns("saveSelected"), "Save Dataset")
+        )
+      ),
+      bslib::nav_panel(
+        title='Full Dataset',
+        tagList(
+          DT::dataTableOutput(ns("fullTable")),
+          downloadButton(ns("saveFile"), "Save Dataset")
+        )
       )
     )
   )
@@ -47,6 +65,14 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
 
     df <- reactiveVal(NULL)
 
+    # reset df if sites are reset
+    observe({
+      if(is.null(sites())){
+        df(NULL)
+      }
+    })
+
+    # reactivity for selecting points
     observeEvent(input$compPlot_selected, {
       update <- df()%>%
         dplyr::mutate(input_site = ifelse(site_id == input$compPlot_selected, !input_site, input_site))
@@ -80,13 +106,23 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
           dplyr::select(c(site, site_id, input_site, longitude, latitude, product, cover, measure, value))
 
       })
-      # Render the data table after processing is complete
-      output$lcData <- DT::renderDT({
-        out_df
-      })
 
       df(out_df)
     })
+
+    output$fullTable <- DT::renderDT({
+      req(df())
+      df()
+    })
+
+    output$selectedTable <- DT::renderDT({
+      req(df())
+      display = df()%>%
+        dplyr::filter(input_site == TRUE)
+
+      display
+    })
+
 
     observe({
       req(df())
@@ -104,37 +140,68 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
           levels = c("Selected Sites", "Generated Sites")
         ))
 
-      p <-
-        data%>%
-        ggplot2::ggplot() +
+      # p <- data%>%
+      #   ggplot2::ggplot() +
+      #   ggplot2::geom_boxplot(
+      #     data = data,
+      #     ggplot2::aes(x = site_type,
+      #                  y = value),
+      #     width = 0.5,
+      #     outlier.shape = NA
+      #   ) +
+      #   ggiraph::geom_point_interactive(
+      #     data = data,
+      #     ggplot2::aes(x = site_type,
+      #                  y = value,
+      #                  tooltip = site,
+      #                  data_id = site_id),
+      #
+      #     position = ggplot2::position_jitter(seed = 1, width = .3)
+      #   ) +
+      #   ggplot2::scale_fill_identity() +
+      #   ggplot2::facet_wrap(~ cover,
+      #                       ncol = 1,
+      #                       scales = "free_y") +
+      #   ggplot2::scale_x_discrete(limits = c('Selected Sites', 'Generated Sites')) +
+      #   scale_color_manual(values = c("highlight" = "yellow", "Input Sites" = "red", "All Sites" = "black")) +
+      #   ggplot2::coord_flip() +
+      #   ggplot2::labs(x = '', y = '') +
+      #   ggplot2::theme_minimal() +
+      #   ggplot2::theme(legend.position = 'none',
+      #                  plot.title = ggplot2::element_text(face = "bold", hjust=0.5),
+      #                  panel.spacing = unit(10, "lines"))
+
+
+      p <- ggplot2::ggplot(data) +
         ggplot2::geom_boxplot(
-          data = data,
-          ggplot2::aes(x = site_type,
-                       y = value),
-          width = 0.2,
+          aes(x = cover, y = value, fill = site_type),
+          width = 1,
+          position = ggplot2::position_dodge2(preserve = "single", width = 0.7),
           outlier.shape = NA
         ) +
         ggiraph::geom_point_interactive(
-          data = data,
-          ggplot2::aes(x = site_type,
-                       y = value,
-                       #       color = ifelse(is.null(selected_site_id) | site_id != selected_site_id, group, "highlight"),
-                       tooltip = site,
-                       data_id = site_id),
-          # size = data$point_size,
-          #alpha = data$point_alpha),
-          position = ggplot2::position_jitter(seed = 1, width = .3)
+          aes(
+            x = cover,
+            y = value,
+            color = site_type,
+            tooltip = site,
+            data_id = site_id
+          ),
+          position = ggplot2::position_dodge2(preserve = "single", width = 0.3),
+          size=2,
+          alpha = 0.7
         ) +
-        ggplot2::scale_fill_identity() +
-        ggplot2::facet_wrap(~ cover, ncol = 1, scales = "free") +
-        ggplot2::scale_x_discrete(limits = c('Selected Sites', 'Generated Sites')) +
-        #   scale_color_manual(values = c("highlight" = "yellow", "Input Sites" = "red", "All Sites" = "black")) +
+        facet_grid(cover ~ ., scales = "free_y", space = "free_y") +
         ggplot2::coord_flip() +
-        ggplot2::labs(x = '', y = '') +
         ggplot2::theme_minimal() +
-        ggplot2::theme(legend.position = 'none',
-                       plot.title = ggplot2::element_text(face = "bold", hjust=0.5))
-
+        ggplot2::labs(x = NULL, y = NULL) +
+        ggplot2::scale_fill_manual(values = c("Selected Sites" = "tomato", "Generated Sites" = "gray")) +
+        ggplot2::scale_color_manual(values = c("Selected Sites" = "tomato", "Generated Sites" = "gray")) +
+        ggplot2::theme(
+          axis.text = ggplot2::element_text(size = 12),
+          legend.position = "top",
+          panel.spacing = unit(1.5, "lines")  # Increase vertical space between facets
+        )
 
       ggiraph::girafe(
         ggobj = p,
@@ -208,6 +275,27 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
     #     )
     #   }
     # })
+
+    output$stats <- renderUI({
+      req(df())
+      d <- df() %>%
+        dplyr::filter(measure == input$measure)
+
+      # Generate plots for each unique cover
+      tagList(
+        lapply(unique(d$cover), function(cat) {
+          cover_data <- d %>%
+            dplyr::filter(cover == cat)
+
+          tagList(
+            HTML(generate_text(cover_data, cat)),
+            hr()
+          )
+        })
+      )
+    })
+
+
     # Save File: Full dataset  -------------------------------------------------
     output$saveFile <- downloadHandler(
       filename = function() {
@@ -219,6 +307,20 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
       }
     )
 
+
+    # Save File: Selected  -------------------------------------------------
+    output$saveSelected <- downloadHandler(
+      filename = function() {
+        paste0("selected_sites.csv")
+      },
+      content = function(file){
+        out = df()%>%
+          dplyr::filter(input_site == TRUE)
+        utils::write.csv(out, file, row.names = FALSE)
+      }
+    )
+
+    return(df)
   })
 }
 

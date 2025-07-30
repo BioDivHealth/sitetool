@@ -15,9 +15,9 @@ app_server <- function(input, output, session) {
   mapData <- mod_step1_server("step1_1")
 
   # Get input sites ------------------------------------------------------------
-  sites <- mod_step2_server("step2_1", mapData$shape, mapData$lc_raster)
+  sites <- mod_step2_server("step2_1", mapData$shape, mapData$lc_raster, updatedSites)
 
   # Plot landcover data --------------------------------------------------------
-  mod_step3_server("step3_1", sites, mapData$lc_raster, mapData$product)
+  updatedSites <- mod_step3_server("step3_1", sites, mapData$lc_raster, mapData$product)
 
 }

@@ -26,11 +26,11 @@ generate_text <- function(data, cat) {
 
   # Create formatted text with colored numbers
   report_text <- paste0(
-    "The input points for <b>", cat, " proportion </b>",
+    "The selected points for <b>", cat, " proportion </b>",
     "<b><span style='color:", p_value_color, "'>", bias_result,  "</span></b>",
     " show sampling bias relative to the rest of the dataset (Mann-Whitney Test: p-value = ",
     "<span style='color:", p_value_color, "'>", format(mw_test$p.value, digits=2), "</span>.",
-    "). The range for the input sites is <span style='color:blue'>",
+    "). The range for the selected sites is <span style='color:blue'>",
     paste(input_range, collapse = '-'), "</span>",
     " and the range for the rest of the dataset is <span style='color:blue'>",
     paste(rest_range, collapse = '-'), "</span>.",
