@@ -2,7 +2,7 @@
 title: "Site Selection Landcover Analyzer"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{ssanalyzer}
+  %\VignetteIndexEntry{sitetool}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -24,7 +24,7 @@ knitr::opts_chunk$set(
 The main component of the package is an Shiny interface that goes through the procedure of site selection step-by-step. To launch the interactive tool, execute the following commands:
 
 ```{r setup, eval=FALSE}
-library(ssanalyzer)
+library(sitetool)
 run_app()
 ```
 
@@ -41,7 +41,7 @@ The package has two options for obtaining a list of potential sites: random site
 The user must specify the area of interest (either via a bounding box or shapefile) and the number of desired points. To get a list of random sites, execute the following command:
 
 ```{r getlist, eval=FALSE, message=FALSE, warning=FALSE}
-library(ssanalyzer)
+library(sitetool)
 bbox <- c(-85, 29, -82, 31) #xmin, ymin, xmax, ymax
 points <- get_random_points(area = bbox, n_points = 10)
 ```
@@ -93,4 +93,4 @@ df = createNDVIDataFrame(in_df = points, r=r, dist = 1000)
 
 
 ## Development and issues
-The \textit{ssanalyzer} package is also available in a development version on GitHub: github.com/biodivhealth/ss-analyzer. Please log any issues or feature requests on GitHub. 
+The \textit{sitetool} package is also available in a development version on GitHub: github.com/biodivhealth/ss-analyzer. Please log any issues or feature requests on GitHub. 

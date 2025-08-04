@@ -1,4 +1,4 @@
-Package: ssanalyzer
+Package: sitetool
 Title: SITE_SELECTION_ANALYZER
 Version: 0.1.0
 Authors@R: 
@@ -14,24 +14,25 @@ Imports:
     config,
     dplyr,
     DT,
-    ggdist,
+    geodata,
     ggiraph,
     ggplot2,
     golem,
     grDevices,
+    htmltools,
     leaflet,
     leaflet.extras,
     magrittr,
     osmdata,
     sf,
     shiny,
+    shinyWidgets,
     stats,
     terra,
     tidyr,
     utils
 Suggests: 
     knitr,
-    lwgeom,
     rmarkdown,
     testthat (>= 3.0.0)
 VignetteBuilder: 

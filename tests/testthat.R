@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(ssanalyzer)
+library(sitetool)
 
-test_check("ssanalyzer")
+test_check("sitetool")

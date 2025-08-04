@@ -86,7 +86,7 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
 
       withProgress(message = "Calculating landcover values", value = 0, {
 
-        out_df <- siteRasterStats(sites(), r = lc_data(), dist = input$radius, progress = TRUE)
+        out_df <- siteRasterStats(sites(), raster = lc_data(), dist = input$radius, progress = TRUE)
 
         sites_xy <- sites() %>%
           dplyr::mutate(longitude = sf::st_coordinates(.)[,1],
