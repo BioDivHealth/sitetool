@@ -1,11 +1,23 @@
+---
+output: github_document
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
 
 # {SiteTool}: A tool for quantitative field site selection
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-The Site Selection Tool is a R Shiny tool used to assess the land cover
-characteristics of potential field sites.
+The Site Selection Tool is a R Shiny tool used to assess
+the land cover characteristics of potential field sites.
 
 The aim of this tool is to help researchers select sites in a
 quantitative way for studies on ecology, public health, anthropology,
@@ -25,17 +37,17 @@ There are two main ways to use this app:
     cover characteristics as compared to other potential sites in the
     same area.
 
+
 ## Installation
 
-You can install the development version of sitetool from
-[GitHub](https://github.com/) with:
+You can install the development version of sitetool from [GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("pak")
 pak::pak("BioDivHealth/sstool")
 
-```
 
+```
 ## Usage
 
 In R, type the following to launch the app:
@@ -121,8 +133,7 @@ You can use the default land cover raster (Copernicus Dynamic Land Cover
 **GeoTIFF** format. The app currently can take three types of
 categorical land-use/landcover data:
 
-1.  [ESA WorldCover
-    Viewer](https://viewer.esa-worldcover.org/worldcover/)
+1.  [ESA WorldCover Viewer](https://viewer.esa-worldcover.org/worldcover/)
 2.  [Dynamic World](https://dynamicworld.app/)
 3.  [Copernicus Dynamic Land Cover](https://lcviewer.vito.be/)
 

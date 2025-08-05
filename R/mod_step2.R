@@ -27,6 +27,10 @@ mod_step2_ui <- function(id) {
                 column(8, textInput(ns('num_sites'), label = NULL, value = 100, placeholder = "Enter number of sites"))
               ),
               fluidRow(
+                column(4, tags$label("Distance between sites (m):")),
+                column(8, textInput(ns('dist_site'), label = NULL, value = 0, placeholder = "Enter site distance"))
+              ),
+              fluidRow(
                 column(4, tags$label("Distance from city (km)")),
                 column(8, sliderInput(ns('dist_city'),  label = NULL, min = 0, max = 10, value = 0))
               ),
@@ -230,6 +234,7 @@ mod_step2_server <- function(id, shape, lc_raster, updatedSites) {
         req(input$num_sites)
         sites_filter <- get_random_points(mapvals$sf,
                                           as.numeric(input$num_sites),
+                                          as.numeric(input$dist_site),
                                           as.numeric(input$dist_road),
                                           as.numeric(input$dist_city),
                                           in_app = TRUE)

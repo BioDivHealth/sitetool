@@ -123,3 +123,32 @@ siteRasterStats <- function(in_df, raster, dist, progress = FALSE) {
 
   return(df)
 }
+
+
+
+summarizeRaster <- function(r) {
+  tryCatch({
+    is_categorical <- terra::is.factor(r)
+    if(is_categorical){
+      df <- terra::freq(r)  # Set useNA = "ifany" to include NAs
+
+      # Compute total number of non-NA cells
+      total_cells <- sum(df$count)
+
+      colnames(df)[colnames(df) == "value"] <- "cover"
+
+      # Add a proportion column
+      df$value <- df$count / total_cells
+
+    }
+    else{
+      mean_val = terra::global(r, fun = "mean", na.rm = TRUE)
+      df = data.frame(cover = names(r)[1],
+                      value = mean_val$mean)
+    }
+    return(df)
+  }, error = function(e){
+    return(NULL)
+  })
+}
+

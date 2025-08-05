@@ -75,11 +75,13 @@ crop_rast <- function(rast, shape, inapp=F){
 #' Downloads 10 m resolution land cover data
 #'
 #' @param shape sf. sf object containing the area of interest
+#' @param tile_limit int. max number of tiles to return.
+#' @param coarse_res int. resolution to scale to.
 #' @param inapp boolean. prints messages to shiny app if in app
 #' @return a SpatRaster of landuse for the shape area.
 #' @export
 
-get_worldcover <- function(shape, tile_limit = 3, inapp = FALSE, coarse_res = 100) {
+get_worldcover <- function(shape, tile_limit = 3,  coarse_res = 100, inapp=FALSE) {
   tiles <- calculate_3x3_tiles(shape)
 
   raster_tiles <- NULL

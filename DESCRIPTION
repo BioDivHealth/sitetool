@@ -28,8 +28,10 @@ Imports:
     shiny,
     shinyWidgets,
     stats,
+    stringr,
     terra,
     tidyr,
+    units,
     utils
 Suggests: 
     knitr,

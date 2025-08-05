@@ -206,6 +206,34 @@ test_that("get_points handles multiple-row MULTIPOLYGON sf objects", {
 
 })
 
+test_that("get_points correctly spreads by distance", {
+  testthat::skip_if_offline()
+
+  bbox <- c(-85, 29, -82, 31)
+  # Run function
+  result <- get_random_points(bbox, n_points=100, min_dist=2000)
+  dists <- sf::st_distance(result)
+
+  dist_matrix <- as.matrix(dists)
+  dist_matrix[lower.tri(dist_matrix, diag = TRUE)] <- NA
+
+  # Assert that all non-NA distances are >= min_dist (allowing small tolerance)
+  expect_true(all(dist_matrix[!is.na(dist_matrix)] >= units::set_units(2000, "m")))
+
+})
+
+test_that("get_points deals with too large min_dist", {
+  testthat::skip_if_offline()
+  # Basic case: return right number of points
+  bbox <- c(-85, 29, -82, 31)
+  expect_error(
+    get_random_points(bbox, n_points = 10, min_dist=10000000),
+    regexp = "Cannot fit.*points.*min_dist.*"
+  )
+})
+
+
+
 test_that("get_village_points handles multiple-row MULTIPOLYGON sf objects", {
   testthat::skip_if_offline()
   # First MULTIPOLYGON (two disjoint squares)

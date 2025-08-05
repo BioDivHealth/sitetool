@@ -22,8 +22,8 @@ mod_step3_ui <- function(id) {
                      value = 1000,
                      max = 100000),
 
-        actionButton(ns("goStep3"), "Go"),
-        selectInput(ns("measure"), h6("Select a landcover measure to compare"), "")
+        actionButton(ns("goStep3"), "Go")
+        #selectInput(ns("measure"), h6("Select a landcover measure to compare"), "")
       ),
       bslib::nav_panel(
         title = 'Summary Plot',
@@ -64,10 +64,14 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
     ns <- session$ns
 
     df <- reactiveVal(NULL)
+    summary <- reactiveVal(NULL)
 
     # reset df if sites are reset
     observe({
       if(is.null(sites())){
+        df(NULL)
+      }
+      if(is.null(lc_data())){
         df(NULL)
       }
     })
@@ -108,6 +112,11 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
       })
 
       df(out_df)
+
+      # get summary values
+      out = summarizeRaster(lc_data())
+
+      summary(out)
     })
 
     output$fullTable <- DT::renderDT({
@@ -124,162 +133,159 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
     })
 
 
-    observe({
-      req(df())
-      updateSelectInput(session, "measure", choices = unique(df()$measure))
-    })
+    # observe({
+    #   req(df())
+    #   updateSelectInput(session, "measure", choices = unique(df()$measure))
+    # })
 
     output$compPlot <- ggiraph::renderGirafe({
       req(df())
+      if(terra::is.factor(lc_data())){
+        selected_measure = 'proportion'
+      }
+      else{
+        selected_measure = 'mean'
+      }
 
       data = df() %>%
         dplyr::filter(!is.na(value)) %>%
-        dplyr::filter(measure == input$measure)%>%
+        dplyr::filter(measure == selected_measure)%>%
         dplyr::mutate(site_type = factor(
-          ifelse(input_site, "Selected Sites", "Generated Sites"),
+          dplyr::if_else(input_site, "Selected Sites", "Generated Sites"),
           levels = c("Selected Sites", "Generated Sites")
         ))
 
-      # p <- data%>%
-      #   ggplot2::ggplot() +
-      #   ggplot2::geom_boxplot(
-      #     data = data,
-      #     ggplot2::aes(x = site_type,
-      #                  y = value),
-      #     width = 0.5,
-      #     outlier.shape = NA
-      #   ) +
-      #   ggiraph::geom_point_interactive(
-      #     data = data,
-      #     ggplot2::aes(x = site_type,
-      #                  y = value,
-      #                  tooltip = site,
-      #                  data_id = site_id),
-      #
-      #     position = ggplot2::position_jitter(seed = 1, width = .3)
-      #   ) +
-      #   ggplot2::scale_fill_identity() +
-      #   ggplot2::facet_wrap(~ cover,
-      #                       ncol = 1,
-      #                       scales = "free_y") +
-      #   ggplot2::scale_x_discrete(limits = c('Selected Sites', 'Generated Sites')) +
-      #   scale_color_manual(values = c("highlight" = "yellow", "Input Sites" = "red", "All Sites" = "black")) +
-      #   ggplot2::coord_flip() +
-      #   ggplot2::labs(x = '', y = '') +
-      #   ggplot2::theme_minimal() +
-      #   ggplot2::theme(legend.position = 'none',
-      #                  plot.title = ggplot2::element_text(face = "bold", hjust=0.5),
-      #                  panel.spacing = unit(10, "lines"))
+      # Count how many unique 'cover' classes you have
+      data$cover <- factor(data$cover)
+      cover_levels <- levels(data$cover)
+      data$x_base <- as.numeric(data$cover)
 
+      cover_lines <- summary() %>%
+        dplyr::mutate(
+          x_base = match(cover, cover_levels),
+          x_start = x_base - 0.25,
+          x_end = x_base + 0.25
+        )
 
-      p <- ggplot2::ggplot(data) +
+      data_boxplot <- data %>% dplyr::mutate(geom_type = "boxplot")
+      data_points <- data %>% dplyr::mutate(geom_type = "points")
+
+      data_combined <- dplyr::bind_rows(data_boxplot, data_points)
+
+      # Now add your x_plot offsets, jitter etc on data_combined
+      data_combined <- data_combined %>%
+        dplyr::mutate(
+          x_plot = dplyr::case_when(
+            site_type == "Selected Sites" & geom_type == "boxplot" ~ x_base + 0.25,
+            site_type == "Selected Sites" & geom_type == "points"  ~ x_base + 0.15,  # offset further right
+            site_type == "Generated Sites" & geom_type == "boxplot" ~ x_base - 0.15,
+            site_type == "Generated Sites" & geom_type == "points"  ~ x_base - 0.25,  # offset further left
+            TRUE ~ x_base
+          ),
+          x_plot_jitter = ifelse(
+            geom_type == "points",
+            x_plot + runif(nrow(data_combined), min = -0.05, max = 0.05),
+            x_plot
+          ),
+          y_plot_jitter = ifelse(
+            geom_type == "points",
+            value + runif(nrow(data_combined), min = -0.05, max = 0.05),
+            value
+          )
+        )
+
+      # Number of facets for sizing
+      n_covers <- length(cover_levels)
+
+      text_size <- if(n_covers == 1) 8 else 14
+
+      # Plot
+      p <- ggplot2::ggplot(data_combined) +
+        # Boxplots (aligned with site_type positions)
         ggplot2::geom_boxplot(
-          aes(x = cover, y = value, fill = site_type),
-          width = 1,
-          position = ggplot2::position_dodge2(preserve = "single", width = 0.7),
-          outlier.shape = NA
-        ) +
-        ggiraph::geom_point_interactive(
-          aes(
-            x = cover,
+          data = data_combined %>% dplyr::filter(geom_type == "boxplot"),
+          ggplot2::aes(
+            x = x_plot,
             y = value,
+            fill = site_type,
+            group = interaction(site_type, cover)
+          ),
+          width = 0.15
+        ) +
+        # Interactive points (on same x as boxplots)
+        ggiraph::geom_point_interactive(
+          data = data_combined %>% dplyr::filter(geom_type == "points")%>%
+            dplyr::distinct(site_id, site_type, cover, .keep_all = TRUE),
+          ggplot2::aes(
+            x = x_plot_jitter,
+            y = y_plot_jitter,
             color = site_type,
             tooltip = site,
             data_id = site_id
           ),
-          position = ggplot2::position_dodge2(preserve = "single", width = 0.3),
-          size=2,
-          alpha = 0.7
+          size = 3,
+          shape = 21,
+          fill = "white",
+          alpha = 0.8
         ) +
-        facet_grid(cover ~ ., scales = "free_y", space = "free_y") +
+        ggplot2::geom_segment(
+          data = cover_lines,
+          ggplot2::aes(x = x_start, xend = x_end, y = value, yend = value,
+                       linetype= "Mean of Sampling Area"),
+          color = "black",
+          linewidth = 1
+        ) +
+        # Custom x-axis with labels in center
+        ggplot2::scale_x_continuous(
+          breaks = base::seq_along(cover_levels),
+          labels = cover_levels
+        ) +
         ggplot2::coord_flip() +
         ggplot2::theme_minimal() +
-        ggplot2::labs(x = NULL, y = NULL) +
-        ggplot2::scale_fill_manual(values = c("Selected Sites" = "tomato", "Generated Sites" = "gray")) +
-        ggplot2::scale_color_manual(values = c("Selected Sites" = "tomato", "Generated Sites" = "gray")) +
+        ggplot2::labs(x = NULL, y = stringr::str_to_title(selected_measure)) +
+        ggplot2::scale_linetype_manual(
+          name = NULL,
+          values = c("Mean of Sampling Area" = "dashed")
+        ) +
+        ggplot2::scale_fill_manual(values = c("Selected Sites" = "tomato", "Generated Sites" = "blue")) +
+        ggplot2::scale_color_manual(values = c("Selected Sites" = "tomato", "Generated Sites" = "blue")) +
         ggplot2::theme(
-          axis.text = ggplot2::element_text(size = 12),
+          axis.text = ggplot2::element_text(size = text_size),
+          axis.title = ggplot2::element_text(size = text_size),
           legend.position = "top",
-          panel.spacing = unit(1.5, "lines")  # Increase vertical space between facets
+          legend.text = ggplot2::element_text(size = text_size),
+          legend.title = ggplot2::element_blank(),
+          #panel.spacing = grid::unit(10, "lines"),
+          #strip.text = ggplot2::element_blank(),
+        #  strip.background = ggplot2::element_blank(),
+         # plot.margin = grid::unit(c(0.5, 0.5, 0.5, 0.5), "cm"),  # top, right, bottom, left
+
         )
 
+      # Interactive output
       ggiraph::girafe(
         ggobj = p,
+        width_svg = 6,
+        height_svg = n_covers * 1.5,
         options = list(
-          ggiraph::opts_hover(css = "fill-opacity:1;fill:yellow;cursor:pointer;"),
-          ggiraph::opts_selection(type = "single", only_shiny=FALSE)
+          ggiraph::opts_hover(css = "fill-opacity:1;fill:orange;cursor:pointer;"),
+          ggiraph::opts_selection(type = "single", only_shiny = FALSE)
         )
       )
     })
 
-    #
-    # output$compPlot <- render({
-    #   req(df())
-    #
-    #   # Organize dataframe for plotting
-    #   d <- df() %>%
-    #     dplyr::mutate(
-    #       group = ifelse(input_site == TRUE, 'Input Sites', 'All Sites'),
-    #       group = factor(group, levels = c('Input Sites', 'All Sites')),
-    #       point_size = ifelse(group == "Input Sites", 1.5, 1),
-    #       point_alpha = ifelse(group == "Input Sites", 0.8, 0.3)
-    #     )
-    #
-    #   if (product() == 'Climate/NDVI') {
-    #     d = d%>%
-    #       dplyr::left_join(
-    #         raster_cats%>%
-    #           dplyr::filter(product == product())%>%
-    #           dplyr::select(c(cover, color)) %>%
-    #           dplyr::rename(measure = cover),
-    #         by = c("cover"))%>%
-    #       dplyr::mutate(measure = ifelse(measure == 'sd', 'standard deviation', measure))
-    #
-    #     tagList(
-    #       lapply(unique(d$measure), function(cat) {
-    #         measure_data <- d[d$measure == cat, ]  # Equivalent to dplyr::filter(measure == cat)
-    #
-    #         tagList(
-    #           ggiraph::renderGirafe({ generate_plot(measure_data, cat, input$cover) }),
-    #           HTML(generate_text(measure_data, cat)),
-    #           hr()
-    #         )
-    #       })
-    #     )
-    #
-    #   } else {
-    #
-    #     d <- d %>%
-    #       dplyr::filter(measure == input$measure) %>%
-    #       dplyr::left_join(
-    #         raster_cats %>%
-    #           dplyr::select(-c(subcover, value)) %>%
-    #           dplyr::filter(product == product()) %>%
-    #           dplyr::group_by(cover) %>%
-    #           dplyr::slice(1),
-    #         by = c("cover")
-    #       )
-    #
-    #     # Generate plots for each unique cover
-    #     tagList(
-    #       lapply(unique(d$cover), function(cat) {
-    #         cover_data <- d %>%
-    #           dplyr::filter(cover == cat)
-    #
-    #         tagList(
-    #           ggiraph::renderGirafe({ generate_plot(cover_data, cat, input$measure) }),
-    #           HTML(generate_text(cover_data, cat)),
-    #           hr()
-    #         )
-    #       })
-    #     )
-    #   }
-    # })
 
     output$stats <- renderUI({
       req(df())
+      if(terra::is.factor(lc_data())){
+        selected_measure = 'proportion'
+      }
+      else{
+        selected_measure = 'mean'
+      }
+
       d <- df() %>%
-        dplyr::filter(measure == input$measure)
+        dplyr::filter(measure == selected_measure)
 
       # Generate plots for each unique cover
       tagList(
@@ -288,7 +294,7 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
             dplyr::filter(cover == cat)
 
           tagList(
-            HTML(generate_text(cover_data, cat)),
+            HTML(generate_text(cover_data, cat, selected_measure)),
             hr()
           )
         })

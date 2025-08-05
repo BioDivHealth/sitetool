@@ -7,6 +7,7 @@
 get_random_points(
   area,
   n_points,
+  min_dist = 0,
   road_dist = 0,
   city_dist = 0,
   crs = 4326,
@@ -18,6 +19,8 @@ get_random_points(
 or a sf object containing a polygon representing the search area.}
 
 \item{n_points}{int. number of points to find}
+
+\item{min_dist}{int. minimum distance between sampled points}
 
 \item{road_dist}{int. distance to the nearest road in meters.}
 

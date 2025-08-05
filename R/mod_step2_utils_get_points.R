@@ -95,6 +95,16 @@ check_distance <- function(points, shape, distance){
   points[!sapply(exclude, any)]
 }
 
+# Automatically choose a UTM CRS based on centroid
+utm_crs <- function(sf_obj) {
+  lon <- sf::st_coordinates(sf::st_centroid(sf::st_geometry(sf_obj)))[, 1]
+  zone <- floor((lon + 180) / 6) + 1
+  epsg <- ifelse(sf::st_is_longlat(sf_obj),
+                 32600 + zone,  # WGS 84 / UTM Northern Hemisphere
+                 sf::st_crs(sf_obj)$epsg)
+  sf::st_crs(epsg)
+}
+
 #' @title Get random points within a polygon or bounding box
 #'
 #' @description Returns a shapefile of points within a bounding box or polygon.
@@ -104,6 +114,7 @@ check_distance <- function(points, shape, distance){
 #' @param area either a vector containing coordinates of the search area as c(xmin, ymin, xmax, ymax)
 #' or a sf object containing a polygon representing the search area.
 #' @param n_points int. number of points to find
+#' @param min_dist int. minimum distance between sampled points
 #' @param road_dist int. distance to the nearest road in meters.
 #' @param city_dist int. points must be futher from cities than this distance.
 #' @param crs the four-digit code for the coordinate reference system of the data. Default is EPSG:4326
@@ -117,95 +128,134 @@ check_distance <- function(points, shape, distance){
 #'
 #' @export get_random_points
 
-get_random_points <- function(area, n_points, road_dist=0, city_dist=0, crs=4326, in_app=FALSE){
-  if(n_points < 1){
-    empty_df <- sf::st_sf(
+get_random_points <- function(area, n_points, min_dist = 0, road_dist = 0, city_dist = 0, crs = 4326, in_app = FALSE) {
+  if (n_points < 1) {
+    return(sf::st_sf(
       data.frame(
         site = integer(),
         site_id = character(),
         input_site = logical(),
-        geometry = sf::st_sfc(crs = 4326)  # empty geometry column with CRS
+        geometry = sf::st_sfc(crs = crs)
       )
-    )
-    return(empty_df)
+    ))
   }
 
-
-  # Create a progress object if in shiny
-  if(in_app){
+  if (in_app) {
     progress <- shiny::Progress$new()
     on.exit(progress$close())
     progress$set(message = "Finding random points", value = 0)
   }
 
-  foundPoints = sf::st_sfc(crs = sf::st_crs(crs))
+  # Validate area
+  bbox_sf <- check_validity(area, crs)
+  if (is.null(bbox_sf)) return(NULL)
+  if (min_dist > 0) {
+    # Project area to a metric CRS (if not already projected)
+    area_m <- sf::st_transform(bbox_sf, 3857)
+    total_area <- as.numeric(sf::st_area(area_m))
 
-  bbox_sf = check_validity(area, crs)
-  if(is.null(bbox_sf)){return(NULL)}
+    point_area <- pi * (min_dist^2) / 0.9069
+    max_points <- floor(total_area / point_area)
 
-  bbox = sf::st_bbox(bbox_sf)
-  if(road_dist > 0){
-    if(in_app){(progress$inc(detail = 'Getting road data', 1/5))}
-    roads = get_roads(bbox)
-    if(is.null(roads)){
-      road_dist = 0
+    if (n_points > max_points) {
       if(in_app){
-        showNotification('Unable to download OpenStreetMap data, setting road distance to 0.', type='warning')
+        showNotification(paste0("Cannot fit ", n_points, " points with distance of ", min_dist,
+                                " m between points in area. Max possible ~ ", max_points, "."), type='error')
+        return(NULL)
       }
-    }
-  }
-
-  if(city_dist > 0){
-    if(in_app){progress$inc(detail = 'Getting city data', 1/5)}
-    cities = get_cities(bbox)
-    if(is.null(cities)){
-      city_dist = 0
-      if(in_app){
-        showNotification('Unable to download OpenStreetMap data, setting city distance to 0.', type='warning')
+      else{
+        stop(paste0("Cannot fit ", n_points, " points with min_dist = ", min_dist,
+                    " m in area. Max possible ~ ", max_points, "."))
       }
+
     }
   }
 
-  if(in_app){progress$inc(detail= 'Getting land area', 1/5)}
 
-  land = get_land_area(bbox_sf)
+  if (in_app) progress$inc(detail = "Preparing data", amount = 0.1)
 
-  # Check that search area is valid
-  if(!all(sf::st_is_valid(bbox_sf))){
-    if(in_app){
-      showNotification("Geometry invalid, please select a different area", type="error")
+  target_crs <- utm_crs(bbox_sf)
+
+  land <- get_land_area(bbox_sf)
+  land_proj <- sf::st_transform(land, target_crs)
+
+  if (road_dist > 0) {
+    if (in_app) progress$inc(detail = 'Getting road data', 0.1)
+    roads <- get_roads(sf::st_bbox(bbox_sf))
+    if (is.null(roads)) {
+      road_dist <- 0
+      if (in_app) showNotification("Could not get roads, setting road_dist to 0", type = "warning")
+    } else {
+      roads <- sf::st_transform(roads, target_crs)
     }
-    return(foundPoints)
   }
 
-  if(in_app){progress$inc(detail= 'Sampling area', 1/5)}
-
-  while(length(foundPoints) < n_points){
-    # sample more than needed to speed up processing
-    points = sf::st_sample(land, n_points*5)
-
-    if(road_dist > 0){
-      points = check_distance(points, roads, road_dist)
+  if (city_dist > 0) {
+    if (in_app) progress$inc(detail = 'Getting city data', 0.1)
+    cities <- get_cities(sf::st_bbox(bbox_sf))
+    if (is.null(cities)) {
+      city_dist <- 0
+      if (in_app) showNotification("Could not get cities, setting city_dist to 0", type = "warning")
+    } else {
+      cities <- sf::st_transform(cities, target_crs)
     }
-
-    if(city_dist > 0){
-      points = check_distance(points, cities, city_dist)
-    }
-
-    foundPoints = c(foundPoints, points)
   }
 
-  if(in_app){progress$inc(1/4)}
-  # if more than needed
-  if(length(foundPoints) > n_points){
-    foundPoints = foundPoints[sample(1:length(foundPoints), n_points)]
+  foundPoints <- sf::st_sfc(crs = target_crs)
+
+  if (in_app) progress$inc(detail = "Sampling area", amount = 0.1)
+
+  while (length(foundPoints) < n_points) {
+    sample_n <- (n_points - length(foundPoints)) * 5
+    new_points <- sf::st_sample(land_proj, sample_n)
+
+    if (road_dist > 0) {
+      new_points <- check_distance(new_points, roads, road_dist)
+    }
+
+    if (city_dist > 0) {
+      new_points <- check_distance(new_points, cities, city_dist)
+    }
+
+    # Filter too close to existing found points
+    if (length(foundPoints) > 0 && min_dist > 0) {
+      dists <- sf::st_distance(new_points, foundPoints)
+      too_close <- apply(dists, 1, function(x) any(x < min_dist))
+      new_points <- new_points[!too_close]
+    }
+
+    # Filter new points too close to each other
+    if (length(new_points) > 1 && min_dist > 0) {
+      keep <- rep(TRUE, length(new_points))
+      min_dist_m <- units::set_units(min_dist, "m")
+      zero_dist <- units::set_units(0, "m")
+
+      for (i in seq_along(new_points)) {
+        if (!keep[i]) next
+        d <- sf::st_distance(new_points[i], new_points[keep])
+        keep[which(keep)[d < min_dist_m & d != zero_dist]] <- FALSE
+      }
+      new_points <- new_points[keep]
+    }
+
+    foundPoints <- c(foundPoints, new_points)
   }
-  # turn into dataframe
-  sites = data.frame(foundPoints)%>%
-    sf::st_as_sf()%>%
-    dplyr::mutate(site = 1:length(foundPoints),
-                  site_id = paste0('random_', 1:length(foundPoints)),
-                  input_site = FALSE)
+
+  if (length(foundPoints) > n_points) {
+    foundPoints <- foundPoints[sample(seq_along(foundPoints), n_points)]
+  }
+
+  foundPoints <- sf::st_transform(foundPoints, crs)  # Return to original CRS
+
+  if (in_app) progress$inc(0.3)
+
+  sites <- sf::st_sf(
+    site = seq_along(foundPoints),
+    site_id = paste0("random_", seq_along(foundPoints)),
+    input_site = FALSE,
+    geometry = foundPoints
+  )
+
   return(sites)
 }
 
@@ -238,6 +288,7 @@ get_village_points <- function(area, crs=4326, in_app=FALSE){
 
   bbox_sf = check_validity(area, crs)
   if(is.null(bbox_sf)){return(NULL)}
+
 
   bbox = sf::st_bbox(bbox_sf)
   sites = get_cities(bbox)

@@ -4,10 +4,14 @@
 \alias{get_worldcover}
 \title{Download ESA WorldCover data}
 \usage{
-get_worldcover(shape, tile_limit = 3, inapp = FALSE, coarse_res = 100)
+get_worldcover(shape, tile_limit = 3, coarse_res = 100, inapp = FALSE)
 }
 \arguments{
 \item{shape}{sf. sf object containing the area of interest}
+
+\item{tile_limit}{int. max number of tiles to return.}
+
+\item{coarse_res}{int. resolution to scale to.}
 
 \item{inapp}{boolean. prints messages to shiny app if in app}
 }
