@@ -32,7 +32,7 @@ You can install the development version of sitetool from
 
 ``` r
 # install.packages("pak")
-pak::pak("BioDivHealth/ss-analyzer")
+pak::pak("BioDivHealth/sitetool")
 
 ```
 
