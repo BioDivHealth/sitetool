@@ -113,7 +113,7 @@ mod_core_mapping_server <- function(id, common){
 
       # Create a new site data.frame with coordinates
       new_site <- data.frame(
-        site = paste0("Selected", format(Sys.time(), "%Y-%m-%d %H:%M:%S")),
+        site = paste0("SelectedPoint_Lat_",round(click$lat, digits=4), "_Lon_", round(click$lng, digits=4)),
         site_id = paste0("select_", as.integer(Sys.time())),
         input_site = TRUE,
         longitude = click$lng,
@@ -123,6 +123,16 @@ mod_core_mapping_server <- function(id, common){
 
       # Convert to sf point geometry
       new_site_sf <- sf::st_as_sf(new_site, coords = c("longitude", "latitude"), crs = 4326)
+
+      # Check if inside bbox
+      if (!is.null(common$sf)) {
+        inside <- any(sf::st_within(new_site_sf, common$sf, sparse = FALSE))
+
+        if (!inside) {
+          showNotification("Clicked point is outside of the region of interest.", type = "warning")
+          return(NULL) # skip adding point
+        }
+      }
 
       # Combine with existing sites
       if (is.null(common$sites) || nrow(common$sites) == 0) {

@@ -58,8 +58,9 @@ mod_step1_ui <- function(id) {
             fileInput(ns("rastfile"), h6("Upload a GeoTIFF covering your region of interest:")),
           ),
 
-          actionButton(ns("goStep1"), "Go"),
-          downloadButton(ns("saveFile"), "Save Raster")
+          actionButton(ns("goStep1"), "Add Raster"),
+          downloadButton(ns("saveFile"), "Save Raster"),
+          actionButton(ns('clearRast'), "Clear All Rasters")
         ),
         mod_core_mapping_ui(ns("core_mapping_1"))
       )
@@ -88,6 +89,10 @@ mod_step1_server <- function(id){
     })
 
     observeEvent(mapvals$sf, {
+      mapvals$raster = NULL
+    })
+
+    observeEvent(input$clearRast, {
       mapvals$raster = NULL
     })
 
