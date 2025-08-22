@@ -56,9 +56,10 @@ mod_core_mapping_server <- function(id, common){
       req(input$bmap)
       proxy %>%
         leaflet::clearTiles() %>%
+        #leaflet::clearControls() %>%
         leaflet::addProviderTiles(input$bmap)
 
-      # Clear existing drawings to redraw (reset_map function assumed)
+      # Clear existing drawings to redraw
       if (!is.null(common$draw) && common$draw) {
         proxy %>% reset_map(common$draw)
       }
@@ -70,9 +71,28 @@ mod_core_mapping_server <- function(id, common){
 
       # Add raster if available
       if (!is.null(common$raster)) {
-        proxy %>% add_raster(common$raster)
-      }
+        proxy %>%
+          add_rasters_native(common$raster)
+      } else {
+        # have to rebuild map because layers toggle is a pain :)))))
+        output$map <- leaflet::renderLeaflet({
+          leaflet::leaflet() %>%
+            leaflet::setView(lng = 0, lat = 0, zoom = 2) %>%
+            leaflet::addProviderTiles("Esri.WorldTopoMap") %>%
+            leaflet.extras::addDrawToolbar(
+              polylineOptions = FALSE,
+              circleOptions = FALSE,
+              rectangleOptions = TRUE,
+              markerOptions = FALSE,
+              circleMarkerOptions = FALSE,
+              singleFeature = TRUE,
+              polygonOptions = FALSE
+            )
+        })
 
+        # Proxy for updating the map
+        proxy <- leaflet::leafletProxy("map")
+        }
       # Add or update site markers
       if (!is.null(common$sites) && nrow(common$sites) > 0) {
         proxy %>% map_points(common$sites)
@@ -104,6 +124,7 @@ mod_core_mapping_server <- function(id, common){
         }
       }
     })
+
 
     # Add new site on map click
     observeEvent(input$map_click, {

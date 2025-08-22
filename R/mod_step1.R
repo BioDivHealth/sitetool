@@ -198,23 +198,13 @@ mod_step1_server <- function(id){
             # Crop raster to bounding box
             r <- terra::crop(r, bbox_sf)
 
-            # Assign levels for raster categories if applicable
-            if (input$product == 'Climate/NDVI') {
-              tryCatch({
-                levels(r) <- raster_cats %>%
-                  subset(product == input$product) %>%
-                  dplyr::select(c(value, subcover))
-
-                terra::coltab(r) <- raster_cats %>%
-                  subset(product == input$product) %>%
-                  dplyr::select(c(value, color))
-              }, error = function(e) {
-                showNotification("Failed to assign levels to the raster. Please check the category data.", type = "error")
-              })
-            }
-
             # If everything is successful:
-            mapvals$raster = r
+            if(is.null(mapvals$raster)){
+              mapvals$raster = r
+            }
+            else{
+              mapvals$raster = c(mapvals$raster, r)
+            }
             showNotification("Raster successfully uploaded.", type = "message")
 
           }, error = function(e) {
@@ -239,7 +229,12 @@ mod_step1_server <- function(id){
             showNotification("Failed to download data, please check your internet connection or select a smaller area.", type = "error")
 
           }
-          mapvals$raster = r
+          if (is.null(mapvals$raster)) {
+            mapvals$raster <- list()
+          }
+
+          # use input$product as the name
+          mapvals$raster[[input$product]] <- r
         })
       }
 
