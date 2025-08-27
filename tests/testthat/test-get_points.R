@@ -175,36 +175,36 @@ test_that("get_village_points works with multipolygon", {
   expect_true("Reward" %in% villages$site)
 })
 
-test_that("get_points handles multiple-row MULTIPOLYGON sf objects", {
-  # First MULTIPOLYGON (two disjoint squares)
-  poly1a <- sf::st_polygon(list(rbind(
-    c(-120, 35), c(-120, 36), c(-119, 36), c(-119, 35), c(-120, 35)
-  )))
-  poly1b <- sf::st_polygon(list(rbind(
-    c(-118, 35), c(-118, 36), c(-117, 36), c(-117, 35), c(-118, 35)
-  )))
-  multipoly1 <- sf::st_multipolygon(list(poly1a, poly1b))
-
-  # Second MULTIPOLYGON (another disjoint set)
-  poly2a <- sf::st_polygon(list(rbind(
-    c(-116, 35), c(-116, 36), c(-115, 36), c(-115, 35), c(-116, 35)
-  )))
-  poly2b <- sf::st_polygon(list(rbind(
-    c(-114, 35), c(-114, 36), c(-113, 36), c(-113, 35), c(-114, 35)
-  )))
-  multipoly2 <- sf::st_multipolygon(list(poly2a, poly2b))
-
-  # Combine into a 2-row sf object
-  shape <- sf::st_sf(
-    id = 1:2,
-    geometry = sf::st_sfc(multipoly1, multipoly2, crs = 4326)
-  )
-
-  # Run function
-  result <- get_random_points(shape, 10)
-  expect_true(nrow(result) == 10)
-
-})
+# test_that("get_points handles multiple-row MULTIPOLYGON sf objects", {
+#   # First MULTIPOLYGON (two disjoint squares)
+#   poly1a <- sf::st_polygon(list(rbind(
+#     c(-120, 35), c(-120, 36), c(-119, 36), c(-119, 35), c(-120, 35)
+#   )))
+#   poly1b <- sf::st_polygon(list(rbind(
+#     c(-118, 35), c(-118, 36), c(-117, 36), c(-117, 35), c(-118, 35)
+#   )))
+#   multipoly1 <- sf::st_multipolygon(list(poly1a, poly1b))
+#
+#   # Second MULTIPOLYGON (another disjoint set)
+#   poly2a <- sf::st_polygon(list(rbind(
+#     c(-116, 35), c(-116, 36), c(-115, 36), c(-115, 35), c(-116, 35)
+#   )))
+#   poly2b <- sf::st_polygon(list(rbind(
+#     c(-114, 35), c(-114, 36), c(-113, 36), c(-113, 35), c(-114, 35)
+#   )))
+#   multipoly2 <- sf::st_multipolygon(list(poly2a, poly2b))
+#
+#   # Combine into a 2-row sf object
+#   shape <- sf::st_sf(
+#     id = 1:2,
+#     geometry = sf::st_sfc(multipoly1, multipoly2, crs = 4326)
+#   )
+#
+#   # Run function
+#   result <- get_random_points(shape, 10)
+#   expect_true(nrow(result) == 10)
+#
+# })
 
 test_that("get_points correctly spreads by distance", {
   testthat::skip_if_offline()

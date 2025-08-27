@@ -11,6 +11,7 @@ mod_step1_ui <- function(id) {
   ns <- NS(id)
   tagList(
     bslib::card(
+      full_screen = TRUE,
       bslib::layout_sidebar(
         class="p-3 border border-top-0 rounded-bottom",
         sidebar = bslib::sidebar(
@@ -49,17 +50,18 @@ mod_step1_ui <- function(id) {
           ## Input Type ##
           selectInput(ns('product'),
                       h6('Please select a raster data source:'),
-                      choices = c('ESA WorldCover - 10m',  'SRTM Elevation - 2.5sec', 'Human Footprint 2009 - 30sec', 'Upload a file')
+                      choices = c('ESA WorldCover',  'SRTM Elevation', 'Human Footprint 2009', 'Upload a file')
           ),
 
           conditionalPanel(
             ns=NS(id),
             condition = "input.product == 'Upload a file'",
-            fileInput(ns("rastfile"), h6("Upload a GeoTIFF covering your region of interest:")),
+            fileInput(ns("rastfile"), h6("Upload a GeoTIFF covering your region of interest:"))
+           # textInput(ns('rastName'), h6('Please add a name for your uploaded file:'))
           ),
 
           actionButton(ns("goStep1"), "Add Raster"),
-          downloadButton(ns("saveFile"), "Save Raster"),
+         # downloadButton(ns("saveFile"), "Save Raster"),
           actionButton(ns('clearRast'), "Clear All Rasters")
         ),
         mod_core_mapping_ui(ns("core_mapping_1"))
@@ -199,12 +201,31 @@ mod_step1_server <- function(id){
             r <- terra::crop(r, bbox_sf)
 
             # If everything is successful:
-            if(is.null(mapvals$raster)){
-              mapvals$raster = r
+            if (is.null(mapvals$raster)) {
+              mapvals$raster <- list()
             }
-            else{
-              mapvals$raster = c(mapvals$raster, r)
+
+            coltab <- terra::coltab(r)[[1]]
+
+            if(!is.null(coltab)){
+              coltab <- coltab[!(coltab$red == 0 & coltab$green == 0 & coltab$blue == 0), ] # mask black as no data
+              colors <- rgb(coltab$red, coltab$green, coltab$blue, maxColorValue = 255)
+              categories <- coltab$value
+              labels <- if ("label" %in% names(coltab)) coltab$label else as.character(categories)
+
+              levs <- data.frame(
+                value = coltab$value,
+                cover = if ("label" %in% names(coltab)) ct$label else as.character(coltab$value)
+              )
+
+              # Apply levels to raster
+              #r <- as.factor(r)
+              levels(r) <- levs
             }
+
+            # use input$product as the name
+            mapvals$raster[[input$rastfile$name]] <- r
+
             showNotification("Raster successfully uploaded.", type = "message")
 
           }, error = function(e) {
@@ -215,13 +236,13 @@ mod_step1_server <- function(id){
 
       } else {
         withProgress(message = 'Downloading raster data', value = 0, {
-          if(input$product == 'ESA WorldCover - 10m'){
+          if(input$product == 'ESA WorldCover'){
             r <- get_worldcover(bbox_sf, inapp=T)
           }
-          if(input$product == 'SRTM Elevation - 2.5sec'){
+          if(input$product == 'SRTM Elevation'){
             r <- download_elevation(bbox_sf, inapp=T)
           }
-          if(input$product == 'Human Footprint 2009 - 30sec'){
+          if(input$product == 'Human Footprint 2009'){
             r <- download_footprint(bbox_sf, inapp=T)
           }
 
@@ -242,10 +263,13 @@ mod_step1_server <- function(id){
 
     output$saveFile <- downloadHandler(
       filename = function() {
-        paste0("landcover_raster.tif")
+        paste0(names(mapvals$raster)[input$layer], ".tif")
       },
-      content = function(file){
-        terra::writeRaster(mapvals$raster, file, overwrite=T)
+      content = function(file) {
+        writeRaster(mapvals$raster[[input$layer]],
+                    filename = file,
+                    filetype = "GTiff",
+                    overwrite = TRUE)
       }
     )
 

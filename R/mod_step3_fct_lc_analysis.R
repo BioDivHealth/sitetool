@@ -56,16 +56,14 @@ siteRasterStats <- function(in_df, raster, dist, progress = FALSE) {
 
     area <- getCroppedArea(in_df$geometry[i], dist)
 
-    if (!terra::relate(terra::ext(area), terra::ext(raster), relation = 'within')) {
-      return(NULL)
-    }
-
     raster_crop <- terra::crop(raster, area)
 
     if (is_categorical) {
       # ----- Categorical: Patch metrics -----
       cell_areas <- terra::cellSize(raster_crop)
       class_tot <- terra::zonal(cell_areas, raster_crop, sum, na.rm = TRUE)
+
+      if (nrow(class_tot) == 0) return(NULL)  # skip empty
 
       if (nrow(class_tot) < 2) {
         class_area <- data.frame(layer = class_tot$cover, mean_patch_area = class_tot$area)
@@ -126,9 +124,9 @@ siteRasterStats <- function(in_df, raster, dist, progress = FALSE) {
 
 
 
-summarizeRaster <- function(r) {
+summarizeRaster <- function(r, product) {
   tryCatch({
-    is_categorical <- terra::is.factor(r)
+    is_categorical <- terra::is.factor(raster)
     if(is_categorical){
       df <- terra::freq(r)  # Set useNA = "ifany" to include NAs
 
@@ -143,7 +141,7 @@ summarizeRaster <- function(r) {
     }
     else{
       mean_val = terra::global(r, fun = "mean", na.rm = TRUE)
-      df = data.frame(cover = names(r)[1],
+      df = data.frame(cover = product,
                       value = mean_val$mean)
     }
     return(df)

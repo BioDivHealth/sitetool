@@ -62,7 +62,7 @@ download_rast <- function(url, inapp=F){
 
 crop_rast <- function(rast, shape, inapp=F){
   cr <- tryCatch({
-    terra::crop(rast, shape)
+    terra::crop(rast, shape, snap='out')
   }, error = function(e) {
     if (inapp) shiny::showNotification(paste("Failed to crop tile:", t), type = "error")
     return(NULL)
@@ -116,7 +116,6 @@ get_worldcover <- function(shape, tile_limit = 3,  coarse_res = 100, inapp=FALSE
         }, silent = TRUE)
       }
 
-
       if (is.null(raster_tiles)) {
         raster_tiles <- ras
       } else {
@@ -135,10 +134,10 @@ get_worldcover <- function(shape, tile_limit = 3,  coarse_res = 100, inapp=FALSE
 
   if(!is.null(raster_tiles)){
     color_table <- data.frame(
-      code = c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100),
-      cover = c("No Data", "Treecover", "Shrubland", "Grassland", "Cropland", "Builtup",
+      code = c(10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100),
+      cover = c("Treecover", "Shrubland", "Grassland", "Cropland", "Builtup",
                "Bare/Sparse", "Snow/Ice", "Water", "Wetland", "Mangroves", "Moss/Lichen"),
-      color = c("#000000", "#006400", "#ffbb22", "#ffff4c", "#f096ff", "#fa0000",
+      color = c("#006400", "#ffbb22", "#ffff4c", "#f096ff", "#fa0000",
                 "#b4b4b4", "#f0f0f0", "#0064c8", "#0096a0", "#00cf75", "#fae6a0")
     )
   #  raster_tiles <- as.factor(raster_tiles)

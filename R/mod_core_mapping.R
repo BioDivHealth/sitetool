@@ -72,7 +72,7 @@ mod_core_mapping_server <- function(id, common){
       # Add raster if available
       if (!is.null(common$raster)) {
         proxy %>%
-          add_rasters_native(common$raster)
+          add_raster_stack(common$raster)
       } else {
         # have to rebuild map because layers toggle is a pain :)))))
         output$map <- leaflet::renderLeaflet({
@@ -135,7 +135,7 @@ mod_core_mapping_server <- function(id, common){
       # Create a new site data.frame with coordinates
       new_site <- data.frame(
         site = paste0("SelectedPoint_Lat_",round(click$lat, digits=4), "_Lon_", round(click$lng, digits=4)),
-        site_id = paste0("select_", as.integer(Sys.time())),
+        site_id = paste0("select_", as.integer(Sys.time()), "_Lat_",round(click$lat, digits=4), "_Lon_", round(click$lng, digits=4)),
         input_site = TRUE,
         longitude = click$lng,
         latitude = click$lat,

@@ -11,6 +11,7 @@ mod_step2_ui <- function(id) {
   ns <- NS(id)
   tagList(
     bslib::card(
+      full_screen = TRUE,
         bslib::layout_sidebar(
           sidebar = bslib::sidebar(
             ## Site Type ##

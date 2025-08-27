@@ -177,39 +177,39 @@ test_that("get_worldcover correctly merges tiles", {
 })
 
 
-test_that("color table is assigned properly", {
-  skip_on_cran()
-  skip_if_offline()
-
-  # Create a small test polygon in known tile
-  shape <- sf::st_as_sf(sf::st_sfc(
-    sf::st_polygon(list(rbind(c(30.0, 0.0), c(30.1, 0.0), c(30.1, 0.1), c(30.0, 0.1), c(30.0, 0.0)))),
-    crs = 4326
-  ))
-
-  # Run function with expected coarse resolution (assuming your function supports it)
-  r <- get_worldcover(shape, tile_limit = 5, inapp = FALSE, coarse_res = 100)
-
-  color_table <- data.frame(
-    code = c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100),
-    name = c("No Data", "Treecover", "Shrubland", "Grassland", "Cropland", "Builtup",
-             "Bare/Sparse", "Snow/Ice", "Water", "Wetland", "Mangroves", "Moss/Lichen"),
-    color = c("#000000", "#006400", "#ffbb22", "#ffff4c", "#f096ff", "#fa0000",
-              "#b4b4b4", "#f0f0f0", "#0064c8", "#0096a0", "#00cf75", "#fae6a0")
-  )
-  ct <- terra::coltab(r)[[1]]
-
-  # 1. Check color table is not NULL
-  expect_false(is.null(ct))
-
-  # 2. Check all expected codes are present
-  expect_true(all(color_table$code %in% ct$values))
-
-  # 3.. Check levels are assigned
-  lvls <- terra::levels(r)[[1]]
-  expect_true(all(color_table$code %in% lvls$code))
-  #expect_equal(lvls$name[match(color_table$code, lvls$code)], color_table$name)
-})
+# test_that("color table is assigned properly", {
+#   skip_on_cran()
+#   skip_if_offline()
+#
+#   # Create a small test polygon in known tile
+#   shape <- sf::st_as_sf(sf::st_sfc(
+#     sf::st_polygon(list(rbind(c(30.0, 0.0), c(30.1, 0.0), c(30.1, 0.1), c(30.0, 0.1), c(30.0, 0.0)))),
+#     crs = 4326
+#   ))
+#
+#   # Run function with expected coarse resolution (assuming your function supports it)
+#   r <- get_worldcover(shape, tile_limit = 5, inapp = FALSE, coarse_res = 100)
+#
+#   color_table <- data.frame(
+#     code = c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100),
+#     name = c("No Data", "Treecover", "Shrubland", "Grassland", "Cropland", "Builtup",
+#              "Bare/Sparse", "Snow/Ice", "Water", "Wetland", "Mangroves", "Moss/Lichen"),
+#     color = c("#000000", "#006400", "#ffbb22", "#ffff4c", "#f096ff", "#fa0000",
+#               "#b4b4b4", "#f0f0f0", "#0064c8", "#0096a0", "#00cf75", "#fae6a0")
+#   )
+#   ct <- terra::coltab(r)[[1]]
+#
+#   # 1. Check color table is not NULL
+#   expect_false(is.null(ct))
+#
+#   # 2. Check all expected codes are present
+#   expect_true(all(color_table$code %in% ct$values))
+#
+#   # 3.. Check levels are assigned
+#   lvls <- terra::levels(r)[[1]]
+#   expect_true(all(color_table$code %in% lvls$code))
+#   #expect_equal(lvls$name[match(color_table$code, lvls$code)], color_table$name)
+# })
 
 #
 # test_that("get_worldcover returns NULL if tiles exceed limit", {

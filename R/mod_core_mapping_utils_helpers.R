@@ -100,117 +100,82 @@ add_raster <- function(map, r){
   }
 }
 
-add_raster_stack <- function(map, r_stack, max_raster_size = 5e7) {
-  stopifnot(inherits(r_stack, "SpatRaster"))
-
-  # Loop through each layer in the stack
-  for (i in seq_len(terra::nlyr(r_stack))) {
-    r <- r_stack[[i]]
-    layer_name <- names(r)
-
-    # Calculate the raster size in bytes
-    raster_size <- terra::ncell(r) * 8
-    r_plot <- r
-
-    # Downscale if needed
-    if (raster_size > max_raster_size) {
-      downscale_factor <- ceiling(sqrt(raster_size / max_raster_size))
-      r_plot <- terra::aggregate(r_plot, fact = downscale_factor, fun = "modal", na.rm = TRUE)
-    }
-
-    # If categorical raster (has coltab)
-    if (!is.null(terra::coltab(r)[[1]])) {
-      map <- map %>%
-        leaflet::addRasterImage(
-          r_plot,
-          opacity = 0.8,
-          group = layer_name
-        ) %>%
-        leaflet::addRasterLegend(
-          r,
-          opacity = 0.8,
-          group = layer_name
-        )
-    } else {
-      # Continuous raster
-      min_val <- min(terra::values(r_plot), na.rm = TRUE)
-      max_val <- max(terra::values(r_plot), na.rm = TRUE)
-      colors <- rev(hcl.colors(10, palette = "Terrain"))
-
-      pal <- leaflet::colorNumeric(
-        palette = colors,
-        domain = c(min_val, max_val)
-      )
-
-      map <- map %>%
-        leaflet::addRasterImage(
-          r_plot,
-          colors = pal,
-          opacity = 0.8,
-          group = layer_name
-        ) %>%
-        leaflet::addLegend(
-          position = "bottomright",
-          pal = pal,
-          values = terra::values(r),
-          opacity = 0.8,
-          group = layer_name
-        )
-    }
-  }
-
-  # Add a layer control to toggle
-  map <- map %>% leaflet::addLayersControl(
-    baseGroups = names(r_stack),
-    options = leaflet::layersControlOptions(collapsed = FALSE)
-  )
-
-  return(map)
-}
-
-add_rasters_native <- function(map, rasters, max_raster_size = 5e7) {
-  # rasters = named list of SpatRaster objects
+add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
   for (name in names(rasters)) {
     r <- rasters[[name]]
 
-    # downscale if too large
-    raster_size <- terra::ncell(r) * 8
-    r_plot <- r
-    if (raster_size > max_raster_size) {
-      downscale_factor <- ceiling(sqrt(raster_size / max_raster_size))
-      r_plot <- terra::aggregate(r_plot, fact = downscale_factor, fun = "modal", na.rm = TRUE)
+    # Downscale if too large
+    if (terra::ncell(r) * 8 > max_raster_size) {
+      factor <- ceiling(sqrt((terra::ncell(r) * 8) / max_raster_size))
+      r <- terra::aggregate(r, fact = factor, fun = "modal", na.rm = TRUE)
     }
 
-    # categorical vs continuous
-    if (!is.null(terra::coltab(r)[[1]])) {
-      map <- map %>%
-        leaflet::addRasterImage(r_plot, opacity = 0.8, group = name) %>%
-        leaflet::addRasterLegend(r, opacity = 0.8, group = name)
+    # EVERYTHING IS AN UGLY WORKAROUND :(
+    # MUST FIX
+    coltab <- terra::coltab(r)[[1]]
+    if (!is.null(coltab)) {
+      # Construct hex colors from RGB columns
+      coltab <- coltab[!(coltab$red == 0 & coltab$green == 0 & coltab$blue == 0), ]
+      colors <- rgb(coltab$red, coltab$green, coltab$blue, maxColorValue = 255)
+      if (!is.null(terra::levels(r)[[1]]) && "code" %in% names(terra::levels(r)[[1]])) {
+        lvl <- terra::levels(r)[[1]]
+        labels <- lvl$cover[match(terra::coltab(r)[[1]]$value, lvl$code)]
+      } else {
+        labels <- as.character(coltab$value)
+      }
+
+      pal <- leaflet::colorFactor(palette = colors, domain = labels)
+
+      # Add raster and legend
+      map <- map%>%
+        leaflet::addRasterImage(r, colors = colors, opacity = 0.8) %>%
+        leaflegend::addLegendFactor(
+          pal = pal,
+          values = labels,
+          group = name,
+          title = name,
+          position = "bottomleft",
+          orientation = "horizontal",
+          width = 15,
+          height = 5
+        )
+
     } else {
-      min_val <- min(terra::values(r_plot), na.rm = TRUE)
-      max_val <- max(terra::values(r_plot), na.rm = TRUE)
-      colors <- rev(hcl.colors(10, "Terrain"))
-      pal <- leaflet::colorNumeric(colors, domain = c(min_val, max_val))
+      # Continuous raster
+      vals_sample <- terra::values(r, mat = FALSE, na.rm = TRUE)
+      vals_sample <- sample(vals_sample, min(10000, length(vals_sample)))  # sample for speed
+
+      min_val <- min(vals_sample)
+      max_val <- max(vals_sample)
+      if (length(unique(vals_sample)) == 1) {
+        min_val <- unique(vals_sample) - 0.5
+        max_val <- unique(vals_sample) + 0.5
+      }
+
+      pal <- leaflet::colorNumeric(palette = rev(hcl.colors(10, "Terrain")),
+                                   domain = c(min_val, max_val))
 
       map <- map %>%
-        leaflet::addRasterImage(r_plot, colors = pal, opacity = 0.8, group = name) %>%
-        leaflet::addLegend(
-          position = "bottomright",
+        leaflet::addRasterImage(r, colors = pal, opacity = 0.8, group = name) %>%
+        leaflegend::addLegendNumeric(
           pal = pal,
-          values = terra::values(r),
-          opacity = 0.8,
+          values = vals_sample,
+          title = name,
           group = name,
-          title = name
+          position = "bottomleft",
+          orientation = "horizontal",
+          width = 150,
+          height = 20
         )
     }
   }
 
-  # toggle layers
+  # Layer toggle
   map <- map %>%
     leaflet::addLayersControl(
       baseGroups = names(rasters),
       options = leaflet::layersControlOptions(collapsed = FALSE)
     )
 
-  return(map)
+  map
 }
