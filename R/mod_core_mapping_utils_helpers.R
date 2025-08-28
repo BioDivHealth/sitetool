@@ -128,7 +128,7 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
 
       # Add raster and legend
       map <- map%>%
-        leaflet::addRasterImage(r, colors = colors, opacity = 0.8) %>%
+        leaflet::addRasterImage(r, colors = colors, opacity = 0.8, group=name) %>%
         leaflegend::addLegendFactor(
           pal = pal,
           values = labels,
@@ -136,7 +136,7 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
           title = name,
           position = "bottomleft",
           orientation = "horizontal",
-          width = 15,
+          width = 5,
           height = 5
         )
 

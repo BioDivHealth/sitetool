@@ -116,7 +116,7 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
           # Add column 'product' with the raster name
           df$product <- rname
 
-          if(!is.null(terra::coltab(r))){
+          if(terra::is.factor(r)){
             df$type = 'categorical'
           }
           else{
@@ -152,19 +152,6 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
       summary(sum_df)
     })
 
-    output$fullTable <- DT::renderDT({
-      req(df())
-      df()
-    })
-
-    output$selectedTable <- DT::renderDT({
-      req(df())
-      display = df()%>%
-        dplyr::filter(input_site == TRUE)
-
-      display
-    })
-
 
     # observe({
     #   req(df())
@@ -188,7 +175,6 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
           ggplot2::aes(
             tooltip = paste0(
               "Site: ", site,
-              "\nID: ", site_id,
               "\nValue: ", round(value, 2)
             ),
             data_id = site_id,        # needed for hover interactivity
@@ -251,6 +237,26 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
       )
     })
 
+    output$fullTable <- DT::renderDT({
+      req(df())
+      df()%>%
+        dplyr::filter(measure != 'sd')%>%
+        dplyr::select(-c(type, site_id))%>%
+        dplyr::mutate(value = round(value, digits=2))
+    })
+
+    output$selectedTable <- DT::renderDT({
+      req(df())
+      display = df()%>%
+        dplyr::filter(input_site == TRUE,
+                      measure != 'sd')%>%
+        dplyr::select(-c(type, site_id, input_site))%>%
+        dplyr::mutate(value = round(value, digits=2))
+
+
+      display
+    })
+
 
     # Save File: Full dataset  -------------------------------------------------
     output$saveFile <- downloadHandler(
@@ -259,7 +265,12 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
       },
       content = function(file){
 
-        utils::write.csv(df(), file, row.names = FALSE)
+        out = df()%>%
+          dplyr::filter(measure != 'sd')%>%
+          dplyr::select(-c(type))
+
+
+        utils::write.csv(out, file, row.names = FALSE)
       }
     )
 
@@ -271,7 +282,10 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
       },
       content = function(file){
         out = df()%>%
-          dplyr::filter(input_site == TRUE)
+          dplyr::filter(input_site == TRUE,
+                        measure != 'sd')%>%
+          dplyr::select(-c(type))
+
         utils::write.csv(out, file, row.names = FALSE)
       }
     )

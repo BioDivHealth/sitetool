@@ -8,46 +8,115 @@ There are two main ways to use this app:
 
 By using this tool, researchers may uncover previously unconsidered field sites as well as ensure that their chosen sites exist along a land cover gradient relevant to their question of interest.
 
-#### Input Raster Sources
+## Instructions
+### Step 1: Select an area interest and type of land cover data
 
-You can use the default rasters or upload a raster for your region of interest in *GeoTIFF* format.
+1.  Select the box icon located in the upper left-hand corner of the
+    map. Use this to select your potential study site area. You may also
+    manually enter the coordinates of your bounding box, or upload a
+    shapefile. Shapefiles must be in GeoJSON format.
 
-Some possible options for land cover data:
-1. [ESA WorldCover Viewer](https://viewer.esa-worldcover.org/worldcover/) 
-2. [Dynamic World](https://dynamicworld.app/)
-3. [Copernicus Dynamic Land Cover](https://lcviewer.vito.be/)
+2.  Select an input raster data source. There are three default rasters
+    (WorldCover, Elevation, and Human Footprint). You also have an
+    option to upload your raster data.
 
-Please visit the above sites to download a raster for your region of interest. If your region covers multiple tiles, please merge tiles into one file prior to uploading. Please ensure the raster CRS is WGS 84, and the values for any land cover type are in one layer following the numeric codes for the above products. 
+    *Uploaded rasters should be in GeoTiff format. If your area
+    encompasses multiple tiles, please merge before uploading. If you
+    are using a categorical raster, make sure there is a color table
+    associated with it for correct display. If you are using the browser
+    version, please ensure you are using Google Chrome, as it is the
+    only browser that supports GeoTiffs. (Note: the browser version can
+    only support small raster files. If you need to upload larger files,
+    please download the app from GitHub and run locally.)*
 
-If you are uploading your own raster, PLEASE USE GOOGLE CHROME or use the app locally. Other browsers do not support GeoTiffs.  
+3.  Press **Add Raster**. The raster will be displayed on the map when
+    finished.
 
-It is recommended to use high-resolution products (< 100m) due to the scale of the analysis.  
+4.  You can continue adding rasters to cover all of your parameters of
+    interests. Please use the map toggle to display the different
+    rasters.
 
-#### Instructions
-##### Step 1
-1. Select the box icon located in the upper left-hand corner of the map. Use this to select your potential study site area. You may also manually enter the coordinates of your bounding box, or upload a shapefile. Shapefiles must be in GeoJSON format and contain one polygon. 
-2. If you are uploading your own raster data, please head to one of the websites to download a land cover raster for your area. If your area encompasses multiple tiles, please merge before uploading. You may use the bounding box coordinates from the previous step to select the same region of interest, making sure to add an appropriately sized buffer around the area for the land cover analysis. 
-3. Press **go**. The raster data will be downloaded or uploaded and then displayed on the map when finished.  If the raster uploads correctly, a plot of your raster will display. (Note: the current upload size limit is 5MB, please ensure files are smaller than this. If you need to upload larger files, please download the app from GitHub and run locally.)
-4. If you have selected one of the default rasters, you have the option to export the raster as a GeoTiff in this step. 
+### Step 2: Generate a list of sites
 
+1.  Select a sampling procedure to generate a list of potential sites.
+    You can select**random** sites or **village** sites. Village sites
+    will find all of the towns/villages/cities in the selected area
+    using OpenStreetMap, and random sites will select sites based on
+    simple random sampling. (*Note: if you select a very large area for
+    **village** sites, the request may time out.*)
+2.  For random sites, you must specify the number of sites required. You
+    can additionally specify a distance between sites. Major water
+    bodies will be avoided, and points will be further from cities and
+    roads than the distance provided.
+3.  You can additionally add some focal (“selected”) sites. You can
+    choose to select these on a map or upload a list of sites in CSV
+    format. The CSV should contain a column labeled **site**, which has
+    the site name, and columns with **latitude** and **longitude** in
+    decimal degrees.
+4.  Press **Go**. The sites according to your specifications will be
+    displayed on the map.
+5.  You have option to export the list of sites in this step.
 
-##### Step 2
-1. Select either **random** sites or **village** sites. Village sites will find all of the towns/villages/cities in the selected area using OpenStreetMap, and random sites will select sites based on simple random sampling. (Note: if you select a very large area for **village** sites, the request may time out.)
-2. For random sites, you must specify the number of sites required. Major water bodies will be avoided, and points will be further from cities and roads than the distance provided.
-3. For city sites, please specify a max population limit. Please note that the population data is often missing and may not correctly filter out sites. 
-4. If you already have potential sites, please upload a list of the sites in CSV format. The CSV should contain a column labeled **site**, which has the site name, and columns with **latitude** and **longitude** in decimal degrees. Additionally, you select points on the map by toggling that option and clicking on the map.
-5. Press **go**. The sites according to your specifications will be displayed on the map.
-6. You have option to export the list of sites in this step. 
+### Step 3: Visualize results
 
+1.  Input the distance from the center of each potential site you would
+    like the land cover data analyzed from in meters. This distance is
+    the distance from the point to each edge of the raster on all four
+    sides, so a distances of 1000 meters (1km) would lead to an area of
+    analysis of 4 km<sup>2</sup>.
 
-##### Step 3
-1. Input the distance from the center of each potential site you would like the land cover data analyzed from in meters. This distance is the distance from the point to each edge of the raster on all four sides, so a distances of 1000 meters (1km) would lead to an area of analysis of 4 km<sup>2</sup>.
-2. Press **go**. The calculations may take a while to run. The plots and data will be displayed in the respective tabs when finished. Press **save file** to export. 
-3. Use the drop down menu to change the measure displayed. For landcover rasters there are three options:
-  - Proportion: the proportion covered by land cover category in the area analyzed
-  - Mean Patch Area: the mean patch size for the land cover category in the area analyzed. A larger mean patch area indicates larger and more contiguous patches of that land cover type. 
-  - Total Area (m<sup>2</sup>): area covered by land cover category in the area analyzed
-4. The comparison plot and table shows the values of your input sites relative to the other sites analyzed. Hover over each point to find the name of the site.
+2.  Press **Go**. The calculations may take a while to run. The plots
+    and data will be displayed in the respective tabs when finished.
+
+3.  The plot shows the values of your input sites relative to the other
+    sites analyzed. Hover over each point to find the name of the site.
+    For categorical rasters, the proportion of that land cover type
+    found within the analysis distance is shown. For continuous rasters,
+    the mean value of that measurement is shown within the analysis
+    distance.
+
+4.  You can add and remove sites from your “generated” and “selected
+    lists. The map will also update.
+
+5.  The stats tab indicates whether the selected sites are statistically
+    different from the generated sites across land cover values.
+
+6.  The data tables contain the results of the analysis for each site
+    and can be exported. The following measurement values for
+    categorical rasters are included:
+
+    - **Proportion**: proportion covered by each land cover category
+      within the analysis range
+    - **Mean Patch Area**: the mean patch size for the land cover
+      category in the area analyzed. A larger mean patch area indicates
+      larger and more contiguous patches of that land cover type.
+    - **Total Area (m<sup>2</sup>)**: area covered by each land cover
+      category within the analysis range
+
+For continuous rasters, the values calculated are mean, min, and max for
+the analysis area.
+
+## Input Land Cover Data
+
+The app can support categorical land cover rasters such as:
+
+1.  [ESA WorldCover
+    Viewer](https://viewer.esa-worldcover.org/worldcover/) (the default)
+2.  [Dynamic World](https://dynamicworld.app/)
+3.  [Copernicus Dynamic Land Cover](https://lcviewer.vito.be/)
+
+Please visit the above sites to download a raster for your region of
+interest. If your region covers multiple tiles, please merge tiles into
+one file prior to uploading. Please ensure the raster CRS is WGS 84, and
+the values for any land cover type are in one layer following the
+numeric codes for the above products.
+
+The app can also support rasters with continuous values, such as for
+temperature, NDVI, or elevation. For these inputs, please ensure the
+input raster has only one numeric layer.
+
+It is recommended to use high-resolution products (\< 100m) due to the
+scale of the analysis.
 
 #### Requests/issues?
 Please log on github: https://github.com/BioDivHealth/sitetool/issues

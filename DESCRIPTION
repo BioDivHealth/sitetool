@@ -21,7 +21,7 @@ Imports:
     grDevices,
     htmltools,
     leaflegend,
-    leaflet,
+    leaflet (>= 2.2),
     leaflet.extras,
     magrittr,
     osmdata,
