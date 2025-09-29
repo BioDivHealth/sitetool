@@ -167,7 +167,8 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
         dplyr::mutate(site_type = factor(
           dplyr::if_else(input_site, "Selected Sites", "Generated Sites"),
           levels = c("Selected Sites", "Generated Sites")
-        ))
+        ))%>%
+        unique()
 
       p <- ggplot2::ggplot(df_plot, ggplot2::aes(x = value, y = site_type, color = site_type, fill = site_type)) +
         ggplot2::geom_boxplot(outlier.shape = NA, alpha = 0.4) +
