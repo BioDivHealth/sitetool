@@ -161,105 +161,127 @@ mod_step1_server <- function(id){
       req(mapvals$sf)
 
       # Add buffer for edge sites
-      bbox_sf = mapvals$sf%>%sf::st_buffer(2)
+      bbox_sf <- mapvals$sf %>% sf::st_buffer(2)
 
       # Load raster:
       if (input$product == 'Upload a file') {
         withProgress(message = 'Uploading raster', value = 0, {
           tryCatch({
-            # Check if file is uploaded
+
+            # ---- 1. Check upload ----
             if (is.null(input$rastfile) || is.null(input$rastfile$datapath)) {
               stop("No file uploaded. Please upload a valid raster file.")
             }
 
-            # Try to load the raster
-            tryCatch({
-              r <- terra::rast(input$rastfile$datapath)
+            max_size_mb <- 30  # lower for shinyapps.io free tier
+            file_size_mb <- file.info(input$rastfile$datapath)$size / (1024^2)
+            if (file_size_mb > max_size_mb) {
+              showNotification(
+                paste0("File too large (", round(file_size_mb, 1), " MB). ",
+                       "Please upload a file smaller than ", max_size_mb, " MB."),
+                type = "error", duration = NULL
+              )
+              return(NULL)
+            }
 
+            # ---- 2. Load raster (lazy pointer, not full read) ----
+            r <- tryCatch({
+              terra::rast(input$rastfile$datapath)
             }, error = function(e) {
-              showNotification("Not a suppported file format.", type = "error")
+              showNotification("Not a supported file format.", type = "error")
               return(NULL)
             })
 
-            # Check if CRS is assigned
+            if (is.null(r)) return(NULL)
+
+            # ---- 3. CRS checks ----
             if (is.na(terra::crs(r))) {
               stop("Please ensure the raster has an assigned coordinate reference system (CRS).")
             }
 
-            # Reproject raster if necessary
+            # ---- 4. Reproject on disk ----
             if (!terra::same.crs(r, "+proj=longlat")) {
-              incProgress(1/2, detail = paste("Reprojecting raster to EPSG:4326"))
-              r <- terra::project(r, 'EPSG:4326')
+              incProgress(1/2, detail = "Reprojecting raster to EPSG:4326")
+              r <- terra::project(r, "EPSG:4326",
+                                  filename = tempfile(fileext = ".tif"),
+                                  overwrite = TRUE)
             }
 
-            # Check if bounding box overlaps raster
-            if (!(terra::relate(terra::ext(bbox_sf), terra::ext(r), relation = 'within'))) {
+            # ---- 5. Check bounding box overlap ----
+            if (!(terra::relate(terra::ext(bbox_sf), terra::ext(r), relation = "within"))) {
               stop("The uploaded raster and the bounding box do not overlap. Please ensure they cover the same region.")
             }
 
-            # Crop raster to bounding box
-            r <- terra::crop(r, bbox_sf)
+            # ---- 6. Crop on disk ----
+            r <- terra::crop(r, bbox_sf,
+                             filename = tempfile(fileext = ".tif"),
+                             overwrite = TRUE)
 
-            # If everything is successful:
-            if (is.null(mapvals$raster)) {
-              mapvals$raster <- list()
+            # ---- 7. Downsample if too big ----
+            max_cells <- 4e6  # adjust as needed
+            if (terra::ncell(r) > max_cells) {
+              fact <- ceiling(sqrt(terra::ncell(r) / max_cells))
+              r <- terra::aggregate(r, fact = fact,
+                                    filename = tempfile(fileext = ".tif"),
+                                    overwrite = TRUE)
+              showNotification("Raster was downsampled to reduce memory use.", type = "warning")
             }
 
-            coltab <- terra::coltab(r)[[1]]
-
-            if(!is.null(coltab)){
-              coltab <- coltab[!(coltab$red == 0 & coltab$green == 0 & coltab$blue == 0), ] # mask black as no data
-              colors <- rgb(coltab$red, coltab$green, coltab$blue, maxColorValue = 255)
-              categories <- coltab$value
-              labels <- if ("label" %in% names(coltab)) coltab$label else as.character(categories)
-
+            # ---- 8. Handle color table safely ----
+            coltab <- tryCatch(terra::coltab(r)[[1]], error = function(e) NULL)
+            if (!is.null(coltab)) {
+              coltab <- coltab[!(coltab$red == 0 & coltab$green == 0 & coltab$blue == 0), ]
               levs <- data.frame(
                 value = coltab$value,
-                cover = if ("label" %in% names(coltab)) ct$label else as.character(coltab$value)
+                cover = if ("label" %in% names(coltab)) coltab$label else as.character(coltab$value)
               )
-
-              # Apply levels to raster
-              #r <- as.factor(r)
               levels(r) <- levs
             }
 
-            # use input$product as the name
+            # ---- 9. Store raster in reactive vals ----
+            if (is.null(mapvals$raster)) {
+              mapvals$raster <- list()
+            }
             mapvals$raster[[input$rastfile$name]] <- r
 
             showNotification("Raster successfully uploaded.", type = "message")
+
+            # ---- 10. Cleanup ----
+            gc()
 
           }, error = function(e) {
             showNotification(e$message, type = "error")
             return(NULL)
           })
-        })
-
+        }) # <- closes withProgress for upload
       } else {
         withProgress(message = 'Downloading raster data', value = 0, {
-          if(input$product == 'ESA WorldCover'){
-            r <- get_worldcover(bbox_sf, inapp=T)
+          if (input$product == 'ESA WorldCover') {
+            r <- get_worldcover(bbox_sf, inapp = TRUE, tile_limit = 2)
           }
-          if(input$product == 'SRTM Elevation'){
-            r <- download_elevation(bbox_sf, inapp=T)
+          if (input$product == 'SRTM Elevation') {
+            r <- download_elevation(bbox_sf, inapp = TRUE)
           }
-          if(input$product == 'Human Footprint 2009'){
-            r <- download_footprint(bbox_sf, inapp=T)
+          if (input$product == 'Human Footprint 2009') {
+            r <- download_footprint(bbox_sf, inapp = TRUE)
           }
 
-          if(is.null(r)){
-            showNotification("Failed to download data, please check your internet connection or select a smaller area.", type = "error")
-
+          if (is.null(r)) {
+            showNotification("Failed to download data, please check your internet connection or select a smaller area.",
+                             type = "error")
           }
+
           if (is.null(mapvals$raster)) {
             mapvals$raster <- list()
           }
 
           # use input$product as the name
           mapvals$raster[[input$product]] <- r
-        })
+        }) # <- closes withProgress for download
       }
 
-    })
+    }) # <- closes observeEvent
+
 
     output$saveFile <- downloadHandler(
       filename = function() {
