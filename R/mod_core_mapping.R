@@ -10,19 +10,30 @@
 mod_core_mapping_ui <- function(id) {
   ns <- NS(id)
   tagList(
+    tags$head(
+      tags$style(HTML("
+        .leaflet-bottom.leaflet-left {
+          bottom: 40px !important; /* shift legends up by 30px */
+        }
+      "))
+    ),
     leaflet::leafletOutput(ns("map"), height = 500),
     tags$div(
       style = "display: flex; gap: 10px;",
-      selectInput(ns("bmap"), "Background map:",
-                  choices = c("ESRI Topo" = "Esri.WorldTopoMap",
-                              "Open Topo" = "OpenTopoMap",
-                              "ESRI Imagery" = "Esri.WorldImagery",
-                              "ESRI Nat Geo" = "Esri.NatGeoWorldMap"),
-                  selected = "Esri.WorldTopoMap"
+      selectInput(
+        ns("bmap"), "Background map:",
+        choices = c(
+          "ESRI Topo"   = "Esri.WorldTopoMap",
+          "Open Topo"   = "OpenTopoMap",
+          "ESRI Imagery"= "Esri.WorldImagery",
+          "ESRI Nat Geo"= "Esri.NatGeoWorldMap"
+        ),
+        selected = "Esri.WorldTopoMap"
       )
     )
   )
 }
+
 
 #' core_mapping Server Functions
 #'

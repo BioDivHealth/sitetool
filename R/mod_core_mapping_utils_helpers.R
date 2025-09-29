@@ -165,7 +165,9 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
           position = "bottomleft",
           orientation = "horizontal",
           width = 150,
-          height = 20
+          height = 20,
+          options = leaflet::leafletOptions(className = "leaflegend", style = "margin-bottom:40px;")
+
         )
     }
   }

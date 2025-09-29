@@ -237,7 +237,7 @@ mod_step1_server <- function(id){
       } else {
         withProgress(message = 'Downloading raster data', value = 0, {
           if(input$product == 'ESA WorldCover'){
-            r <- get_worldcover(bbox_sf, inapp=T)
+            r <- get_worldcover(bbox_sf, inapp=T, tile_limit = 4)
           }
           if(input$product == 'SRTM Elevation'){
             r <- download_elevation(bbox_sf, inapp=T)
