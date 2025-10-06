@@ -126,7 +126,7 @@ siteRasterStats <- function(in_df, raster, dist, progress = FALSE) {
 
 summarizeRaster <- function(r, product) {
   tryCatch({
-    is_categorical <- terra::is.factor(raster)
+    is_categorical <- terra::is.factor(r)
     if(is_categorical){
       df <- terra::freq(r)  # Set useNA = "ifany" to include NAs
 

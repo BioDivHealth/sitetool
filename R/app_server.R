@@ -5,29 +5,6 @@
 #' @import shiny
 #' @noRd
 app_server <- function(input, output, session) {
-  # App text -------------------------------------------------------------------
-
-  # output$about <- renderUI({
-  #   file_path <- app_sys("app/www/about.md")
-  #   htmltools::tagList(
-  #     div(
-  #       style = "display: flex; align-items: flex-start; gap: 30px;",
-  #       div(
-  #         style = "flex: 2;",
-  #         includeMarkdown(file_path)
-  #       ),
-  #       div(
-  #         style = "flex: 1;",
-  #         img(
-  #           src = "www/SiteTool_HexLogo.png",
-  #           style = "max-width: 100%; height: auto;",
-  #           alt = "SiteTool Logo"
-  #         )
-  #       )
-  #     )
-  #   )
-  # })
-
   output$about <- renderUI({
     file_path <- app_sys("app/www/about.Rmd")
     html_content <- rmarkdown::render(

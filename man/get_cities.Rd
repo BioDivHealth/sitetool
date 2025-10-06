@@ -10,6 +10,8 @@ get_cities(bbox, crs = 4326, in_app = FALSE)
 \item{bbox}{a vector containing coordinates of the search area as c(xmin, ymin, xmax, ymax)}
 
 \item{crs}{the four-digit code for the coordinate reference system of the data. Default is EPSG:4326}
+
+\item{in_app}{if in shiny version, adds notifications}
 }
 \value{
 a `sf` containing cities within the bounding box

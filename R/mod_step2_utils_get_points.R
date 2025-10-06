@@ -40,6 +40,7 @@ get_land_area <- function(shape){
 #'
 #' @param bbox  a vector containing coordinates of the search area as c(xmin, ymin, xmax, ymax)
 #' @param crs the four-digit code for the coordinate reference system of the data. Default is EPSG:4326
+#' @param in_app if in shiny version, adds notifications
 #'
 #' @returns a `sf` containing the highways within a bounding box
 #' #' @export get_roads
@@ -87,6 +88,7 @@ get_roads <- function(bbox, crs = 4326, in_app = FALSE) {
 #'
 #' @param bbox  a vector containing coordinates of the search area as c(xmin, ymin, xmax, ymax)
 #' @param crs the four-digit code for the coordinate reference system of the data. Default is EPSG:4326
+#' @param in_app if in shiny version, adds notifications
 #'
 #' @returns a `sf` containing cities within the bounding box
 #' #' @export get_cities

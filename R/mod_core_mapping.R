@@ -46,7 +46,7 @@ mod_core_mapping_server <- function(id, common){
       leaflet::leaflet() %>%
         leaflet::setView(lng = 0, lat = 20, zoom = 2) %>%
         leaflet::addProviderTiles(input$bmap) %>%
-        addScaleBar(position = "bottomleft") %>%
+        leaflet::addScaleBar(position = "bottomleft") %>%
         leaflet::addMeasure() %>%
         leaflet.extras::addDrawToolbar(
           polylineOptions = FALSE,
@@ -156,7 +156,7 @@ mod_core_mapping_server <- function(id, common){
           leaflet::leaflet() %>%
             leaflet::setView(lng = 0, lat = 20, zoom = 2) %>%
             leaflet::addProviderTiles(input$bmap) %>%
-            addScaleBar(position = "bottomleft") %>%
+            leaflet::addScaleBar(position = "bottomleft") %>%
             leaflet::addMeasure() %>%
             leaflet.extras::addDrawToolbar(
               polylineOptions = FALSE,

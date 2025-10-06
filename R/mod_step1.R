@@ -281,20 +281,8 @@ mod_step1_server <- function(id){
         }) # <- closes withProgress for download
       }
 
-    }) # <- closes observeEvent
+    })
 
-
-    output$saveFile <- downloadHandler(
-      filename = function() {
-        paste0(names(mapvals$raster)[input$layer], ".tif")
-      },
-      content = function(file) {
-        writeRaster(mapvals$raster[[input$layer]],
-                    filename = file,
-                    filetype = "GTiff",
-                    overwrite = TRUE)
-      }
-    )
 
     # Return Items
     list(

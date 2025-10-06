@@ -6,7 +6,7 @@ reset_map <- function(map, draw){
       leaflet::clearShapes() %>%
       leaflet::clearMarkers()%>%
       leaflet::clearControls()%>%
-      addScaleBar(position = "bottomleft") %>%
+      leaflet::addScaleBar(position = "bottomleft") %>%
       leaflet::addMeasure() %>%
       leaflet.extras::addDrawToolbar(rectangleOptions = TRUE,
                                      polylineOptions = FALSE,
@@ -22,7 +22,7 @@ reset_map <- function(map, draw){
       leaflet::clearShapes()%>%
       leaflet::clearMarkers()%>%
       leaflet::clearControls()%>%
-      addScaleBar(position = "bottomleft") %>%
+      leaflet::addScaleBar(position = "bottomleft") %>%
       leaflet::addMeasure()
   }
 
