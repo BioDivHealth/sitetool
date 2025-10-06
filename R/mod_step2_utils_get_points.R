@@ -44,24 +44,39 @@ get_land_area <- function(shape){
 #' @returns a `sf` containing the highways within a bounding box
 #' #' @export get_roads
 
-get_roads <- function(bbox, crs = 4326) {
+get_roads <- function(bbox, crs = 4326, in_app = FALSE) {
   tryCatch({
-    roads_query <- osmdata::opq(bbox = bbox,
-                       timeout = 60) %>%
-      osmdata::add_osm_feature(key = "highway",
-                      value = c("motorway", "primary", "secondary", "tertiary", "residential"))
+    roads_query <- osmdata::opq(bbox = bbox, timeout = 60) %>%
+      osmdata::add_osm_feature(
+        key = "highway",
+        value = c("motorway", "primary", "secondary", "tertiary", "residential")
+      )
+
     roads <- osmdata::osmdata_sf(roads_query)$osm_lines
 
-    if (is.null(roads)) {
+    # If no roads returned, return empty sf
+    if (is.null(roads) || nrow(roads) == 0) {
       roads <- sf::st_sf(geometry = sf::st_sfc())
+      if (in_app) {
+        shiny::showNotification("No roads found in this bounding box.", type = "warning")
+      }
     } else {
       roads <- sf::st_set_crs(roads, crs)
     }
-    }, error = function(e) {
-      roads <- sf::st_sf(geometry = sf::st_sfc())
-      message(e$message)
-    })
+
+    return(roads)
+
+  }, error = function(e) {
+    if (in_app) {
+      shiny::showNotification(paste("Error fetching roads. Please select a smaller area."), type = "error")
+    } else {
+      message("Error fetching roads: ", e$message)
+    }
+    # Return empty sf to prevent app crash
+    return(sf::st_sf(geometry = sf::st_sfc()))
+  })
 }
+
 
 #' Get OpenStreetMap city data within a bounding box
 #'
@@ -76,17 +91,36 @@ get_roads <- function(bbox, crs = 4326) {
 #' @returns a `sf` containing cities within the bounding box
 #' #' @export get_cities
 
-get_cities <- function(bbox, crs=4326){
+get_cities <- function(bbox, crs = 4326, in_app = FALSE) {
   tryCatch({
-    cities_query <- osmdata::opq(bbox = bbox,
-                        timeout = 60) %>%
-      osmdata::add_osm_feature(key = "place",
-                      value = c("city", "borough", "suburb", "quarter", "village", "town", "hamlet"))
-    cities <- osmdata::osmdata_sf(cities_query)$osm_points%>%
+    cities_query <- osmdata::opq(bbox = bbox, timeout = 60) %>%
+      osmdata::add_osm_feature(
+        key = "place",
+        value = c("city", "borough", "suburb", "quarter", "village", "town", "hamlet")
+      )
+
+    cities <- osmdata::osmdata_sf(cities_query)$osm_points %>%
       sf::st_set_crs(crs)
-  }, error = function(e){
-    message(e$message)
-    cities <- sf::st_sf(geometry = sf::st_sfc())
+
+    # If no points returned, return empty sf
+    if (is.null(cities) || nrow(cities) == 0) {
+      cities <- sf::st_sf(geometry = sf::st_sfc())
+      if (in_app) {
+        shiny::showNotification("No cities found in this bounding box.", type = "warning")
+      }
+    }
+
+    return(cities)
+
+  }, error = function(e) {
+    # Show notification in Shiny if desired
+    if (in_app) {
+      shiny::showNotification(paste("Error fetching cities. Please select a smaller area."), type = "error")
+    } else {
+      message("Error fetching cities: ", e$message)
+    }
+    # Return empty sf so app doesn't break
+    return(sf::st_sf(geometry = sf::st_sfc()))
   })
 }
 
@@ -181,7 +215,7 @@ get_random_points <- function(area, n_points, min_dist = 0, road_dist = 0, city_
 
   if (road_dist > 0) {
     if (in_app) progress$inc(detail = 'Getting road data', 0.1)
-    roads <- get_roads(sf::st_bbox(bbox_sf))
+    roads <- get_roads(sf::st_bbox(bbox_sf), in_app=in_app)
     if (is.null(roads)) {
       road_dist <- 0
       if (in_app) showNotification("Could not get roads, setting road_dist to 0", type = "warning")
@@ -192,7 +226,7 @@ get_random_points <- function(area, n_points, min_dist = 0, road_dist = 0, city_
 
   if (city_dist > 0) {
     if (in_app) progress$inc(detail = 'Getting city data', 0.1)
-    cities <- get_cities(sf::st_bbox(bbox_sf))
+    cities <- get_cities(sf::st_bbox(bbox_sf), in_app=in_app)
     if (is.null(cities)) {
       city_dist <- 0
       if (in_app) showNotification("Could not get cities, setting city_dist to 0", type = "warning")
@@ -279,38 +313,67 @@ get_random_points <- function(area, n_points, min_dist = 0, road_dist = 0, city_
 #'
 #' @export get_village_points
 
-get_village_points <- function(area, crs=4326, in_app=FALSE){
-  if(in_app){
+get_village_points <- function(area, crs = 4326, in_app = FALSE) {
+  if (in_app) {
     progress <- shiny::Progress$new()
     on.exit(progress$close())
     progress$set(message = "Obtaining village data", value = 0)
   }
 
-  bbox_sf = check_validity(area, crs)
-  if(is.null(bbox_sf)){return(NULL)}
+  bbox_sf <- check_validity(area, crs)
+  if (is.null(bbox_sf)) return(NULL)
 
+  bbox <- sf::st_bbox(bbox_sf)
 
-  bbox = sf::st_bbox(bbox_sf)
-  sites = get_cities(bbox)
+  # Safe call to get_cities
+  sites <- tryCatch({
+    get_cities(bbox, crs = crs, in_app=in_app)
+  }, error = function(e) {
+    if (in_app) {
+      shiny::showNotification(
+        paste("Error retrieving village points:", e$message),
+        type = "error"
+      )
+    } else {
+      message("Error retrieving village points: ", e$message)
+    }
+    sf::st_sf(site_id = integer(0),
+              site = character(0),
+              input_site = logical(0),
+              geometry = sf::st_sfc())  # empty sf with correct columns
+  })
 
-  if(in_app){progress$inc(1/2)}
+  if (in_app) progress$inc(0.5)
 
-  # only keep points inside object
-  intersect_mat <- sf::st_intersects(sites, bbox_sf, sparse = FALSE)
-  intersect_any <- apply(intersect_mat, 1, any)
-  sites <- sites[intersect_any, ]
+  # Only keep points inside area
+  if (!is.null(sites) && nrow(sites) > 0) {
+    intersect_mat <- sf::st_intersects(sites, bbox_sf, sparse = FALSE)
+    intersect_any <- apply(intersect_mat, 1, any)
+    sites <- sites[intersect_any, ]
+  }
 
-  if (!is.null(sites$name)) {
+  # Ensure consistent columns even if empty
+  if (nrow(sites) == 0 || !"name" %in% colnames(sites)) {
+    if (in_app) {
+      shiny::showNotification(
+        "No sites found. Please select another location, site type, or check your internet connection.",
+        type = "warning"
+      )
+    }
+    sites <- sf::st_sf(
+      site_id = integer(0),
+      site = character(0),
+      input_site = logical(0),
+      geometry = sf::st_sfc()
+    )
+  } else {
     sites <- sites %>%
       dplyr::select(osm_id, name, geometry) %>%
       dplyr::rename(site_id = osm_id, site = name) %>%
-      dplyr::mutate(input_site = FALSE)%>%
+      dplyr::mutate(input_site = FALSE) %>%
       dplyr::filter(!is.na(site))
+  }
 
-    return(sites)
-  }
-  else {
-    if(in_app){showNotification('No sites found. Please select another location, site type, or check your internet connection.', type='warning')}
-    return(NULL)
-  }
+  return(sites)
 }
+

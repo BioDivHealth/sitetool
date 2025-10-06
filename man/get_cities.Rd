@@ -4,7 +4,7 @@
 \alias{get_cities}
 \title{Get OpenStreetMap city data within a bounding box}
 \usage{
-get_cities(bbox, crs = 4326)
+get_cities(bbox, crs = 4326, in_app = FALSE)
 }
 \arguments{
 \item{bbox}{a vector containing coordinates of the search area as c(xmin, ymin, xmax, ymax)}

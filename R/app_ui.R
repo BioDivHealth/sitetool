@@ -23,17 +23,15 @@ app_ui <- function(request) {
 
         theme = bslib::bs_theme(preset = 'pulse'),
         fillable = FALSE,
-
-        bslib::nav_panel("Home",
+        bslib::nav_panel(
+          title = "Instructions",
+          uiOutput('about'),
+          tags$style(type = "text/css", ".container-fluid {padding-left:20px}")
+        ),
+        bslib::nav_panel("Tool",
                          mod_step1_ui("step1_1"),
                          mod_step2_ui("step2_1"),
                          mod_step3_ui("step3_1")
-        ),
-
-        bslib::nav_panel(
-          title = "About",
-          uiOutput('about'),
-          tags$style(type = "text/css", ".container-fluid {padding-left:20px}")
         )
       )
 

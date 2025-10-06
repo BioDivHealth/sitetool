@@ -39,7 +39,7 @@ By using this tool, researchers may uncover previously unconsidered field sites 
 ### Step 2: Generate a list of sites
 
 1.  Select a sampling procedure to generate a list of potential sites.
-    You can select**random** sites or **village** sites. Village sites
+    You can select **random** sites or **village** sites. Village sites
     will find all of the towns/villages/cities in the selected area
     using OpenStreetMap, and random sites will select sites based on
     simple random sampling. (*Note: if you select a very large area for
@@ -75,8 +75,8 @@ By using this tool, researchers may uncover previously unconsidered field sites 
     the mean value of that measurement is shown within the analysis
     distance.
 
-4.  You can add and remove sites from your “generated” and “selected
-    lists. The map will also update.
+4.  Click on a point to switch a site between a “generated” and “selected""
+    site. The map will also update.
 
 5.  The stats tab indicates whether the selected sites are statistically
     different from the generated sites across land cover values.

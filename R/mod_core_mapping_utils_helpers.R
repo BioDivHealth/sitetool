@@ -6,6 +6,8 @@ reset_map <- function(map, draw){
       leaflet::clearShapes() %>%
       leaflet::clearMarkers()%>%
       leaflet::clearControls()%>%
+      addScaleBar(position = "bottomleft") %>%
+      leaflet::addMeasure() %>%
       leaflet.extras::addDrawToolbar(rectangleOptions = TRUE,
                                      polylineOptions = FALSE,
                                      circleOptions = FALSE,
@@ -19,7 +21,9 @@ reset_map <- function(map, draw){
       leaflet.extras::removeDrawToolbar(clearFeatures=TRUE)%>%
       leaflet::clearShapes()%>%
       leaflet::clearMarkers()%>%
-      leaflet::clearControls()
+      leaflet::clearControls()%>%
+      addScaleBar(position = "bottomleft") %>%
+      leaflet::addMeasure()
   }
 
 }
@@ -54,14 +58,20 @@ map_points <- function(map, sites) {
 }
 
 
-draw_sf <- function(map, sf_obj, draw=F) {
+draw_sf <- function(map, sf_obj, draw=F, zoom_box=FALSE) {
   bbx = sf::st_bbox(sf_obj)
 
   map <- map %>%
     reset_map(draw=draw)%>%
-    leaflet::addPolygons(data = sf_obj, color = "#5365FF", fillOpacity = 0.2) %>%
-    leaflet::fitBounds(lng1 = bbx[[1]], lat1 = bbx[[2]],
-                       lng2 = bbx[[3]], lat2 = bbx[[4]])
+    leaflet::addPolygons(data = sf_obj, color = "#5365FF", fillOpacity = 0.2)
+
+
+  if(zoom_box){
+    map <- map%>%
+      leaflet::fitBounds(lng1 = bbx[[1]], lat1 = bbx[[2]],
+                         lng2 = bbx[[3]], lat2 = bbx[[4]])
+  }
+  map
 }
 
 
@@ -95,7 +105,8 @@ add_raster <- function(map, r){
       leaflet::addRasterImage(r_plot, colors = leaflet::colorNumeric(
         palette = colors,
         domain = c(min_val, max_val),
-      ), opacity = 0.8)
+      ), opacity = 0.8,
+      group=group)
 
   }
 }
