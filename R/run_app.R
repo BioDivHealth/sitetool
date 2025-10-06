@@ -17,7 +17,7 @@ run_app <- function(
   uiPattern = "/",
   ...
 ) {
-  options(shiny.maxRequestSize = 50 * 1024^2)
+  options(shiny.maxRequestSize = 100 * 1024^2)
 
   with_golem_options(
     app = shinyApp(

@@ -25,8 +25,15 @@ app_ui <- function(request) {
         fillable = FALSE,
         bslib::nav_panel(
           title = "Instructions",
-          uiOutput('about'),
-          tags$style(type = "text/css", ".container-fluid {padding-left:20px}")
+          div(
+            htmlOutput("about")
+          ),
+          tags$style(HTML("
+            #about img {
+              max-width: 75%;
+              height: auto;
+            }
+          "))
         ),
         bslib::nav_panel("Tool",
                          mod_step1_ui("step1_1"),

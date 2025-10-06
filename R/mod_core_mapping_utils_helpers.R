@@ -121,8 +121,6 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
       r <- terra::aggregate(r, fact = factor, fun = "modal", na.rm = TRUE)
     }
 
-    # EVERYTHING IS AN UGLY WORKAROUND :(
-    # MUST FIX
     coltab <- terra::coltab(r)[[1]]
     if (!is.null(coltab)) {
       # Construct hex colors from RGB columns
@@ -145,7 +143,7 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
           values = labels,
           group = name,
           title = name,
-          position = "bottomleft",
+          position = "bottomright",
           orientation = "horizontal",
           width = 5,
           height = 5
@@ -176,9 +174,7 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
           position = "bottomleft",
           orientation = "horizontal",
           width = 150,
-          height = 20,
-          options = leaflet::leafletOptions(className = "leaflegend", style = "margin-bottom:40px;")
-
+          height = 20
         )
     }
   }

@@ -9,7 +9,7 @@
 #' @importFrom shiny NS tagList
 mod_core_mapping_ui <- function(id) {
   ns <- NS(id)
-  tagList(
+   tagList(
     tags$head(
       tags$style(HTML("
         .leaflet-bottom.leaflet-left {

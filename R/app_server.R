@@ -7,25 +7,37 @@
 app_server <- function(input, output, session) {
   # App text -------------------------------------------------------------------
 
+  # output$about <- renderUI({
+  #   file_path <- app_sys("app/www/about.md")
+  #   htmltools::tagList(
+  #     div(
+  #       style = "display: flex; align-items: flex-start; gap: 30px;",
+  #       div(
+  #         style = "flex: 2;",
+  #         includeMarkdown(file_path)
+  #       ),
+  #       div(
+  #         style = "flex: 1;",
+  #         img(
+  #           src = "www/SiteTool_HexLogo.png",
+  #           style = "max-width: 100%; height: auto;",
+  #           alt = "SiteTool Logo"
+  #         )
+  #       )
+  #     )
+  #   )
+  # })
+
   output$about <- renderUI({
-    file_path <- app_sys("app/www/about.md")
-    htmltools::tagList(
-      div(
-        style = "display: flex; align-items: flex-start; gap: 30px;",
-        div(
-          style = "flex: 2;",
-          includeMarkdown(file_path)
-        ),
-        div(
-          style = "flex: 1;",
-          img(
-            src = "www/SiteTool_HexLogo.png",
-            style = "max-width: 100%; height: auto;",
-            alt = "SiteTool Logo"
-          )
-        )
-      )
+    file_path <- app_sys("app/www/about.Rmd")
+    html_content <- rmarkdown::render(
+      input = file_path,
+      output_format = rmarkdown::html_fragment(),
+      quiet = TRUE
     )
+
+    # Read the rendered HTML and convert to HTML for Shiny
+    htmltools::HTML(paste(readLines(html_content), collapse = "\n"))
   })
   # Get landcover data ---------------------------------------------------------
   mapData <- mod_step1_server("step1_1")

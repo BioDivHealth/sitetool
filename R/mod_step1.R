@@ -173,7 +173,7 @@ mod_step1_server <- function(id){
               stop("No file uploaded. Please upload a valid raster file.")
             }
 
-            max_size_mb <- 30  # lower for shinyapps.io free tier
+            max_size_mb <- 100  # lower for shinyapps.io free tier
             file_size_mb <- file.info(input$rastfile$datapath)$size / (1024^2)
             if (file_size_mb > max_size_mb) {
               showNotification(
