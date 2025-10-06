@@ -11,10 +11,10 @@ characteristics of potential field sites.
 
 The aim of this tool is to help researchers select sites in a
 quantitative way using spatial data. Often, researchers aim to have
-field sites \] that exist along a gradient of different land use types
-and characteristics. This tool allows researchers to analyze the land
-cover characteristics of a list of sites, and see where potential sites
-fall along a gradient of other potential sites.
+field sites that exist along a gradient of different land use types and
+characteristics. This tool allows researchers to analyze the land cover
+characteristics of a list of sites, and see where potential sites fall
+along a gradient of other potential sites.
 
 A ready-to-use browser version is available:
 <https://ecosyshealth.shinyapps.io/SiteTool/>.
@@ -66,8 +66,8 @@ There are three ways to select an area of interest:
 2.  **Bounding Box Coordinates**
 
     You may also manually enter the coordinates of your bounding box.
-    The map will update based on these bounding box
-    coordinates.![](inst/app/www/images/Step1_2.png)
+    The map will update based on these bounding box coordinates.
+    ![](inst/app/www/images/Step1_2.png)
 
 3.  **Shapefile**
 
@@ -195,16 +195,14 @@ your uploaded rasters.
     were added to the selected
     sites.![](inst/app/www/images/Step3_3.png)
 
-<!-- -->
-
 3.  **Statistical Comparison**
 
     The stats tab indicates whether the selected sites are statistically
     different from the generated sites across land cover values.
 
-![](inst/app/www/images/Step3_4.png)
+    ![](inst/app/www/images/Step3_4.png)
 
-3.  **Data Tables and Export**
+4.  **Data Tables and Export**
 
     The data tables contain the results of the analysis for each site
     and can be exported. The following measurement values for
@@ -232,7 +230,7 @@ tab is selected.
 The app can support categorical land cover rasters such as:
 
 1.  [ESA WorldCover
-    Viewer](https://viewer.esa-worldcover.org/worldcover/) (the default)
+    Viewer](https://viewer.esa-worldcover.org/worldcover/)
 2.  [Dynamic World](https://dynamicworld.app/)
 3.  [Copernicus Dynamic Land Cover](https://lcviewer.vito.be/)
 

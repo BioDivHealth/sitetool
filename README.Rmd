@@ -218,7 +218,7 @@ your uploaded rasters.
     The stats tab indicates whether the selected sites are statistically
     different from the generated sites across land cover values.
 
-![](inst/app/www/images/Step3_4.png)
+    ![](inst/app/www/images/Step3_4.png)
 
 3.  **Data Tables and Export**
 
