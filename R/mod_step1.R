@@ -50,7 +50,7 @@ mod_step1_ui <- function(id) {
           ## Input Type ##
           selectInput(ns('product'),
                       h6('Please select a raster data source:'),
-                      choices = c('ESA WorldCover',  'SRTM Elevation', 'Human Footprint 2009', 'Upload a file')
+                      choices = c('SRTM Elevation', 'ESA WorldCover', 'Human Footprint 2009', 'Upload a file')
           ),
 
           conditionalPanel(

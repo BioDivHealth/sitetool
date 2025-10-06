@@ -131,20 +131,56 @@ mod_core_mapping_server <- function(id, common){
     observeEvent(common$raster, {
       # Add or remove raster
       if (!is.null(common$raster)) {
+        # proxy <- leaflet::leafletProxy("map")%>%
+        #   leaflet::clearGroup("BaseMap") %>%
+        #   leaflet::addProviderTiles(input$bmap, group = "BaseMap")
+        # Draw bounding box if present
+        if (!is.null(common$sf)) {
+          proxy <- proxy %>% draw_sf(common$sf, common$draw, zoom_box = FALSE)
+        }
+        # Add site points if available
+        if (!is.null(common$sites)) {
+          proxy <- proxy %>% map_points(common$sites)
+        }
         proxy <- proxy %>% add_raster_stack(common$raster)
-      } else {
-        proxy <- proxy %>%
-          leaflet::clearGroup("BaseMap") %>%
-          leaflet::addProviderTiles(input$bmap, group = "BaseMap")
       }
-      # Draw bounding box if present
-      if (!is.null(common$sf)) {
-        proxy <- proxy %>% draw_sf(common$sf, common$draw, zoom_box = FALSE)
+      # Need to recreate map bc otherwise raster layer toggle is not removed
+      else{
+        # Store current view
+        center_lat <- isolate(input$map_center$lat)
+        center_lng <- isolate(input$map_center$lng)
+        zoom_level <- isolate(input$map_zoom)
+
+        output$map <- leaflet::renderLeaflet({
+          leaflet::leaflet() %>%
+            leaflet::setView(lng = 0, lat = 20, zoom = 2) %>%
+            leaflet::addProviderTiles(input$bmap) %>%
+            addScaleBar(position = "bottomleft") %>%
+            leaflet::addMeasure() %>%
+            leaflet.extras::addDrawToolbar(
+              polylineOptions = FALSE,
+              circleOptions = FALSE,
+              rectangleOptions = TRUE,
+              markerOptions = FALSE,
+              circleMarkerOptions = FALSE,
+              singleFeature = FALSE,
+              polygonOptions = FALSE
+            )
+        })
+        proxy <- leaflet::leafletProxy("map")
+        if (!is.null(center_lat) && !is.null(center_lng) && !is.null(zoom_level)) {
+          proxy %>% leaflet::setView(lng = center_lng, lat = center_lat, zoom = zoom_level)
+        }
+
+        if (!is.null(common$sf)) {
+          proxy <- proxy %>% draw_sf(common$sf, common$draw, zoom_box = FALSE)
+        }
+        # Add site points if available
+        if (!is.null(common$sites)) {
+          proxy <- proxy %>% map_points(common$sites)
+        }
       }
-      # Add site points if available
-      if (!is.null(common$sites)) {
-        proxy <- proxy %>% map_points(common$sites)
-      }
+
     }, ignoreNULL = FALSE)
 
     # --- (4) Sites added or updated ---
