@@ -46,20 +46,44 @@ mod_step2_ui <- function(id) {
               ns=NS(id),
               condition = "input.selection_type == 'village'",
               fluidRow(
-                column(4, tags$label('Number of sites:')),
-                column(8, textOutput(ns("siteCount")))
+                # --- Selection mode row ---
+                column(
+                  12,
+                  radioButtons(
+                    ns("site_selection_mode"),
+                    label = NULL,
+                    choices = c("All Sites" = "all", "Random Subset" = "subset"),
+                    selected = "all",
+                    inline = TRUE
+                  )
+                ),
+
+                # --- Number of sites row ---
+                column(
+                  4,
+                  tags$label("Number of sites:")
+                ),
+                column(
+                  8,
+                  conditionalPanel(
+                    condition = sprintf("input['%s'] == 'subset'", ns("site_selection_mode")),
+                    numericInput(
+                      ns("num_sites"),
+                      label = NULL,
+                      value = 100,
+                      min = 1,
+                      step = 1,
+                      width = "100%"
+                    )
+                  ),
+                  conditionalPanel(
+                    condition = sprintf("input['%s'] == 'all'", ns("site_selection_mode")),
+                    textOutput(ns("siteCount"))
+                  )
+                )
               )
-              # fluidRow(
-              #   column(4, tags$label("Max city population")),
-              #   column(8, sliderInput(ns('city_pop'),
-              #                         label = NULL,
-              #                         min = 0,
-              #                         max = 1000000,
-              #                         step = 100,
-              #                         value = 10000)
-              #   )
-              # )
-            ),
+              ),
+
 
             ## Input Sites ##
 
@@ -139,7 +163,7 @@ mod_step2_server <- function(id, shape, lc_raster, updatedSites) {
     })
 
     # Reset sites when selection type or bbox changes
-    observeEvent(list(input$selection_type, mapvals$bbox), {
+    observeEvent(mapvals$bbox, {
       mapvals$sites <- NULL
     })
 
@@ -230,7 +254,33 @@ mod_step2_server <- function(id, shape, lc_raster, updatedSites) {
 
       sites_filter <- NULL
       if(input$selection_type == 'village'){
-        sites_filter <- get_village_points(mapvals$sf, in_app = TRUE)
+          sites_filter <- get_village_points(mapvals$sf, in_app = TRUE)
+          if(input$site_selection_mode == 'subset'){
+            req(input$num_sites)
+
+            n_requested <- as.numeric(input$num_sites)
+            n_available <- nrow(sites_filter)
+            if (is.na(n_requested) || n_requested <= 0) {
+              showNotification("Please enter a valid positive number of sites.", type = "error")
+              return(NULL)
+            }
+
+            if (n_requested > n_available) {
+              showNotification(
+                sprintf(
+                  "Requested %d sites, but only %d available. Selecting all sites instead.",
+                  n_requested, n_available
+                ),
+                type = "warning"
+              )
+            } else {
+              sites_filter <- sites_filter[sample(seq_len(n_available), n_requested), , drop = FALSE]
+              showNotification(
+                sprintf("Randomly selected %d of %d available sites.", n_requested, n_available),
+                type = "message"
+              )
+            }
+          }
       } else if(input$selection_type == 'random'){
         req(input$num_sites)
         sites_filter <- get_random_points(mapvals$sf,
@@ -241,19 +291,22 @@ mod_step2_server <- function(id, shape, lc_raster, updatedSites) {
                                           in_app = TRUE)
       }
 
-      # Add uploaded input sites if any
-      if(!is.null(mapvals$sites)){
-        input_sites_df <- mapvals$sites %>%
-          dplyr::filter(input_site == TRUE)
+      sites_filter <- sites_filter %>%
+        dplyr::mutate(site = as.character(site))  # coerce to character
+
+      if (!is.null(mapvals$sites) && nrow(mapvals$sites) > 0) {
+        # Also coerce mapvals$sites columns to same type if needed
+        mapvals$sites <- mapvals$sites %>%
+          dplyr::mutate(site = as.character(site))
+
+        combined_sites <- dplyr::bind_rows(mapvals$sites %>% dplyr::filter(input_site == TRUE),
+                                           sites_filter)
       } else {
-        input_sites_df <- NULL
+        combined_sites <- sites_filter
       }
 
-      if(!is.null(input_sites_df) && nrow(input_sites_df) > 0){
-        sites_filter <- rbind(input_sites_df, sites_filter)
-      }
 
-      mapvals$sites <- rbind(mapvals$sites, sites_filter)
+      mapvals$sites <- combined_sites
     })
 
     # Return reactive sites for upstream use if needed

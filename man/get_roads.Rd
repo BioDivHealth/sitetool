@@ -4,7 +4,7 @@
 \alias{get_roads}
 \title{Get OpenStreetMap roads data within a bounding box}
 \usage{
-get_roads(bbox, crs = 4326)
+get_roads(bbox, crs = 4326, in_app = FALSE)
 }
 \arguments{
 \item{bbox}{a vector containing coordinates of the search area as c(xmin, ymin, xmax, ymax)}

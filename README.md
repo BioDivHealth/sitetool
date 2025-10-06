@@ -1,5 +1,5 @@
 
-# {SiteTool}: A tool for quantitative field site selection
+# SiteTool: A tool for quantitative field site selection
 
 <!-- badges: start -->
 <!-- badges: end -->
@@ -8,15 +8,14 @@ The Site Selection Tool is a R Shiny tool used to assess the land cover
 characteristics of potential field sites.
 
 The aim of this tool is to help researchers select sites in a
-quantitative way for studies on ecology, public health, anthropology,
-and more. Often, researchers aim to have field sites that exist along a
-gradient of different land use types and characteristics. This tool
-allows researchers to analyze the land cover characteristics of a list
-of sites, and see where potential sites fall along a gradient of other
-potential sites.
+quantitative way using spatial data. Often, researchers aim to have
+field sites \] that exist along a gradient of different land use types
+and characteristics. This tool allows researchers to analyze the land
+cover characteristics of a list of sites, and see where potential sites
+fall along a gradient of other potential sites.
 
 A ready-to-use browser version is available:
-<https://nimirz.shinyapps.io/ss-analyzer/>.
+<https://ecosyshealth.shinyapps.io/SiteTool/>.
 
 However, local installation is recommended following the below
 instructions.
@@ -33,7 +32,7 @@ install.packages("pak")
 pak::pak("BioDivHealth/sitetool")
 ```
 
-## Usage
+## Launching the app
 
 Once the package and dependencies have installed, type the following to
 launch the app:
@@ -42,8 +41,11 @@ launch the app:
 sitetool::run_app()
 ```
 
-This will open an interactive interface which you can use for site
-selection. The tools is broken down into three main steps:
+This will open the tool into in an interactive interface.
+
+## Tutorial
+
+The tool is broken down into three main steps:
 
 ### Step 1: Select an area interest and type of land cover data
 
