@@ -16,10 +16,6 @@ knitr::opts_chunk$set(
 
 # SiteTool: A tool for quantitative field site selection
 
-<!-- badges: start -->
-
-<!-- badges: end -->
-
 ![](inst/app/www/SiteTool_HexLogo.png){width="174"}
 
 The Site Selection Tool is a R Shiny tool used to assess the land cover
@@ -27,10 +23,10 @@ characteristics of potential field sites.
 
 The aim of this tool is to help researchers select sites in a
 quantitative way using spatial data. Often, researchers aim to have
-field sites that exist along a gradient of different land use types
-and characteristics. This tool allows researchers to analyze the land
-cover characteristics of a list of sites, and see where potential sites
-fall along a gradient of other potential sites.
+field sites that exist along a gradient of different land use types and
+characteristics. This tool allows researchers to analyze the land cover
+characteristics of a list of sites, and see where potential sites fall
+along a gradient of other potential sites.
 
 A ready-to-use browser version is available:
 <https://ecosyshealth.shinyapps.io/SiteTool/>.
@@ -46,8 +42,18 @@ interface or RStudio, please enter the following commands to install
 sitetool from [GitHub](https://github.com/):
 
 ``` r
-install.packages("pak")
-pak::pak("BioDivHealth/sitetool")
+# install.packages("remotes")
+remotes::install_github("BioDivHealth/sitetool")
+```
+
+You will need GitHub credentials for it to install. You can
+alternatively download the package as a zip file by clicking the
+drop-down "Code" menu in the upper right corner, then selecting
+"Download Zip". In an R window, navigate to the folder in which you
+downloaded the package and enter:
+
+``` r
+remotes::install_local("sitetool-main.zip")
 ```
 
 ## Launching the app
@@ -82,8 +88,7 @@ There are three ways to select an area of interest:
 2.  **Bounding Box Coordinates**
 
     You may also manually enter the coordinates of your bounding box.
-    The map will update based on these bounding box
-    coordinates.
+    The map will update based on these bounding box coordinates.
     ![](inst/app/www/images/Step1_2.png)
 
 3.  **Shapefile**
@@ -212,7 +217,6 @@ your uploaded rasters.
     were added to the selected
     sites.![](inst/app/www/images/Step3_3.png)
 
-
 3.  **Statistical Comparison**
 
     The stats tab indicates whether the selected sites are statistically
@@ -220,7 +224,7 @@ your uploaded rasters.
 
     ![](inst/app/www/images/Step3_4.png)
 
-3.  **Data Tables and Export**
+4.  **Data Tables and Export**
 
     The data tables contain the results of the analysis for each site
     and can be exported. The following measurement values for
@@ -249,7 +253,7 @@ tab is selected.
 The app can support categorical land cover rasters such as:
 
 1.  [ESA WorldCover
-    Viewer](https://viewer.esa-worldcover.org/worldcover/) 
+    Viewer](https://viewer.esa-worldcover.org/worldcover/)
 2.  [Dynamic World](https://dynamicworld.app/)
 3.  [Copernicus Dynamic Land Cover](https://lcviewer.vito.be/)
 

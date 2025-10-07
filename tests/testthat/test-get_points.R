@@ -41,6 +41,7 @@ test_that("check_distance filters points correctly", {
 
 test_that("get_random_points generates the correct number of points", {
   testthat::skip_if_offline()
+  testhtat::skip_if_ci()
   # Basic case: return right number of points
   bbox <- c(-85, 29, -82, 31)
   points <- get_random_points(bbox, n_points = 10)

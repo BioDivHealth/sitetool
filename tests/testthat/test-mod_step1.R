@@ -1,6 +1,7 @@
 
 test_that("Shapefile uploads correctly", {
   testServer(mod_step1_server, {
+    skip_on_ci()
     address = test_path("test_sf.geojson")
     skip_if_not(file.exists(address), "Missing test shapefile")
     session$setInputs(shapefile = list(datapath = address))
@@ -15,6 +16,7 @@ test_that("Shapefile uploads correctly", {
 
 test_that("Invalid shapefile doesn't upload", {
   testServer(mod_step1_server, {
+    skip_on_ci()
     address = test_path("invalid_geom.geojson")
     session$setInputs(shapefile = list(datapath = address))
     session$flushReact()

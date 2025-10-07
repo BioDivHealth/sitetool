@@ -1,9 +1,6 @@
 
 # SiteTool: A tool for quantitative field site selection
 
-<!-- badges: start -->
-<!-- badges: end -->
-
 <img src="inst/app/www/SiteTool_HexLogo.png" width="174" />
 
 The Site Selection Tool is a R Shiny tool used to assess the land cover
@@ -30,8 +27,18 @@ interface or RStudio, please enter the following commands to install
 sitetool from [GitHub](https://github.com/):
 
 ``` r
-install.packages("pak")
-pak::pak("BioDivHealth/sitetool")
+# install.packages("remotes")
+remotes::install_github("BioDivHealth/sitetool")
+```
+
+You will need GitHub credentials for it to install. You can
+alternatively download the package as a zip file by clicking the
+drop-down “Code” menu in the upper right corner, then selecting
+“Download Zip”. In an R window, navigate to the folder in which you
+downloaded the package and enter:
+
+``` r
+remotes::install_local("sitetool-main.zip")
 ```
 
 ## Launching the app
