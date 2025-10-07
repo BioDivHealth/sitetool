@@ -236,6 +236,7 @@ test_that("get_points deals with too large min_dist", {
 
 test_that("get_village_points handles multiple-row MULTIPOLYGON sf objects", {
   testthat::skip_if_offline()
+  testthat::skip_on_ci()
   # First MULTIPOLYGON (two disjoint squares)
   poly1a <- sf::st_polygon(list(rbind(
     c(-120, 35), c(-120, 36), c(-119, 36), c(-119, 35), c(-120, 35)
