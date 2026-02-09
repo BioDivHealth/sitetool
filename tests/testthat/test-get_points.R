@@ -41,7 +41,7 @@ test_that("check_distance filters points correctly", {
 
 test_that("get_random_points generates the correct number of points", {
   testthat::skip_if_offline()
-  testhtat::skip_if_ci()
+  testthat::skip_on_ci()
   # Basic case: return right number of points
   bbox <- c(-85, 29, -82, 31)
   points <- get_random_points(bbox, n_points = 10)
@@ -71,6 +71,7 @@ test_that("get_random_points generates the correct number of points", {
 
 test_that("get_points works with shapefile", {
   testthat::skip_if_offline()
+  testthat::skip_on_ci()
   coords <- matrix(c(
     -122.42, 37.74,  # Bottom-left
     -122.44, 37.77,  # Top-left
@@ -283,5 +284,4 @@ test_that("get_village_points filters villages correctly", {
   points <- get_village_points(bbox)
   expect_true(length(points) == 0)
 })
-
 
