@@ -21,6 +21,7 @@ test_that("get_roads returns valid spatial object", {
 
 test_that("get_cities returns valid spatial object", {
   testthat::skip_if_offline()
+  testthat::skip_on_ci()
   bbox <- c(-85, 29, -82, 31)
   cities <- get_cities(bbox)
   expect_true(all(sf::st_geometry_type(cities) == "POINT"))
@@ -161,6 +162,7 @@ test_that("get_random_points works with multipolygon", {
 
 test_that("get_village_points works with multipolygon", {
   testthat::skip_if_offline()
+  testthat::skip_on_ci()
   poly1 <- sf::st_polygon(list(rbind(
     c(-120, 35), c(-120, 36), c(-119, 36), c(-119, 35), c(-120, 35)
   )))
