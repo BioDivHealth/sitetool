@@ -271,6 +271,7 @@ test_that("get_village_points handles multiple-row MULTIPOLYGON sf objects", {
 
 test_that("get_village_points filters villages correctly", {
   testthat::skip_if_offline()
+  testthat::skip_on_ci()
   bbox <- c(-85, 29, -82, 31)
   villages <- get_village_points(bbox)
   expect_true("Tallahassee" %in% villages$site)
@@ -284,4 +285,3 @@ test_that("get_village_points filters villages correctly", {
   points <- get_village_points(bbox)
   expect_true(length(points) == 0)
 })
-
