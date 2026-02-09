@@ -16,7 +16,7 @@ app_ui <- function(request) {
             style = "margin-right: 15px;"
           ),
           tags$span(
-            "Site Selection Tool",
+            "SiteTool",
             style = "font-weight: 600; font-size: 1.5rem; white-space: nowrap;"
           )
         ),
@@ -64,7 +64,7 @@ golem_add_external_resources <- function() {
     tags$link(rel = "icon", type = "image/png", href = "SiteTool_HexLogo.png"),
     bundle_resources(
       path = app_sys("app/www"),
-      app_title = "Site Selection Tool"
+      app_title = "SiteTool"
     ),
     # Add here other external resources
     # for example, you can add shinyalert::useShinyalert()

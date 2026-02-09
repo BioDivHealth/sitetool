@@ -195,20 +195,45 @@ mod_step1_server <- function(id){
             if (is.null(r)) return(NULL)
 
             # ---- 3. CRS checks ----
-            if (is.na(terra::crs(r))) {
+            r_crs <- terra::crs(r)
+            if (is.na(r_crs) || !nzchar(r_crs) || tolower(r_crs) == "unknown") {
               stop("Please ensure the raster has an assigned coordinate reference system (CRS).")
             }
 
             # ---- 4. Reproject on disk ----
-            if (!terra::same.crs(r, "+proj=longlat")) {
+            r_raw <- r
+            raw_extent <- terra::ext(r_raw)
+            needs_reproject <- !terra::same.crs(r_raw, "+proj=longlat")
+            if (needs_reproject) {
               incProgress(1/2, detail = "Reprojecting raster to EPSG:4326")
-              r <- terra::project(r, "EPSG:4326",
+              r <- terra::project(r_raw, "EPSG:4326",
                                   filename = tempfile(fileext = ".tif"),
                                   overwrite = TRUE)
             }
 
             # ---- 5. Check bounding box overlap ----
-            if (!(terra::relate(terra::ext(bbox_sf), terra::ext(r), relation = "within"))) {
+            roi_extent <- terra::ext(bbox_sf)
+            within_roi <- terra::relate(roi_extent, terra::ext(r), relation = "within")
+            if (!within_roi) {
+              intersects_roi <- terra::relate(roi_extent, terra::ext(r), relation = "intersects")
+              if (needs_reproject) {
+                raw_within <- terra::relate(roi_extent, raw_extent, relation = "within")
+                raw_intersects <- terra::relate(roi_extent, raw_extent, relation = "intersects")
+                raw_in_degree_range <- raw_extent$xmin >= -180 && raw_extent$xmax <= 180 &&
+                  raw_extent$ymin >= -90 && raw_extent$ymax <= 90
+                if ((raw_within || raw_intersects) && raw_in_degree_range) {
+                  stop(paste(
+                    "The uploaded raster does not cover the selected region after reprojection.",
+                    "The CRS metadata may be incorrect (e.g., coordinates in degrees labeled as EPSG:3857).",
+                    "Please check the raster CRS and try again."
+                  ))
+                }
+              }
+
+              if (intersects_roi) {
+                stop("The uploaded raster does not fully cover the selected region. Please upload a raster that covers the ROI or select a smaller region.")
+              }
+
               stop("The uploaded raster and the bounding box do not overlap. Please ensure they cover the same region.")
             }
 

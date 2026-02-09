@@ -126,21 +126,24 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
       # Construct hex colors from RGB columns
       coltab <- coltab[!(coltab$red == 0 & coltab$green == 0 & coltab$blue == 0), ]
       colors <- rgb(coltab$red, coltab$green, coltab$blue, maxColorValue = 255)
-      if (!is.null(terra::levels(r)[[1]]) && "code" %in% names(terra::levels(r)[[1]])) {
+      values <- if ("value" %in% names(coltab)) coltab$value else coltab[[1]]
+      labels <- NULL
+      if (!is.null(terra::levels(r)[[1]]) && all(c("code", "cover") %in% names(terra::levels(r)[[1]]))) {
         lvl <- terra::levels(r)[[1]]
-        labels <- lvl$cover[match(terra::coltab(r)[[1]]$value, lvl$code)]
-      } else {
-        labels <- as.character(coltab$value)
+        labels <- lvl$cover[match(values, lvl$code)]
+      }
+      if (is.null(labels) || anyNA(labels)) {
+        labels <- as.character(values)
       }
 
-      pal <- leaflet::colorFactor(palette = colors, domain = labels)
+      pal <- leaflet::colorFactor(palette = colors, domain = labels, levels = labels)
 
       # Add raster and legend
       map <- map%>%
         leaflet::addRasterImage(r, colors = colors, opacity = 0.8, group=name) %>%
         leaflegend::addLegendFactor(
           pal = pal,
-          values = labels,
+          values = factor(labels, levels = labels),
           group = name,
           title = name,
           position = "bottomright",

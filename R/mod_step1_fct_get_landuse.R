@@ -49,22 +49,37 @@ format_tile_name <- function(lat, lon, year=2019) {
 }
 
 
-download_rast <- function(url, inapp=F){
-    r <- tryCatch({
-      terra::rast(url)
-    }, error = function(e) {
-      if (inapp) shiny::showNotification(paste("Failed to download tile:", t), type = "error")
-      return(NULL)
-    })
-    return(r)
+download_rast <- function(url, inapp = FALSE) {
+  # GDAL may open https:// GeoTIFFs in streaming mode (slow / can appear to hang)
+  # unless we explicitly use /vsicurl/ for random access.
+  url_vsi <- url
+  if (grepl("^https?://", url, ignore.case = TRUE) && !grepl("^/vsi", url, ignore.case = TRUE)) {
+    url_vsi <- paste0("/vsicurl/", url)
+  }
+
+  r <- tryCatch({
+    terra::rast(url_vsi)
+  }, error = function(e) {
+    if (inapp) {
+      shiny::showNotification(
+        paste("Failed to download raster:", basename(url)),
+        type = "error"
+      )
+    }
+    return(NULL)
+  })
+
+  return(r)
 }
 
 
-crop_rast <- function(rast, shape, inapp=F){
+crop_rast <- function(rast, shape, inapp = FALSE) {
   cr <- tryCatch({
     terra::crop(rast, shape, snap='out')
   }, error = function(e) {
-    if (inapp) shiny::showNotification(paste("Failed to crop tile:", t), type = "error")
+    if (inapp) {
+      shiny::showNotification("Failed to crop raster.", type = "error")
+    }
     return(NULL)
   })
   return(cr)
@@ -207,5 +222,4 @@ download_footprint <- function(shape, year=2009, inapp=F) {
 
   return(footprint)
 }
-
 
