@@ -3,15 +3,16 @@
 
 <img src="inst/app/www/SiteTool_HexLogo.png" width="174" />
 
-The Site Selection Tool is a R Shiny tool used to assess the land cover
+The SiteTool is a R Shiny tool used to assess geospatial
 characteristics of potential field sites.
 
 The aim of this tool is to help researchers select sites in a
 quantitative way using spatial data. Often, researchers aim to have
-field sites that exist along a gradient of different land use types and
-characteristics. This tool allows researchers to analyze the land cover
-characteristics of a list of sites, and see where potential sites fall
-along a gradient of other potential sites.
+field sites that exist along gradients of different environmental and
+landscape characteristics. This tool allows researchers to analyze
+raster-derived characteristics (for example, land cover, elevation, or
+NDVI) of a list of sites, and see where potential sites fall along a
+gradient of other potential sites.
 
 A ready-to-use browser version is available:
 <https://ecosyshealth.shinyapps.io/SiteTool/>.
@@ -24,7 +25,7 @@ instructions.
 SiteTool is an R based tool. You first need an update-to-date
 installation of R (\>= 4; <https://www.r-project.org/>). In an R
 interface or RStudio, please enter the following commands to install
-sitetool from [GitHub](https://github.com/):
+`sitetool` from [GitHub](https://github.com/):
 
 ``` r
 # install.packages("remotes")
@@ -57,7 +58,7 @@ This will open the tool into in an interactive interface.
 The tool is broken down into three main steps. It is designed so that
 you can go back and forth between steps to update your site list.
 
-### Step 1: Select an area interest and type of land cover data
+### Step 1: Select an area interest and type of raster data
 
 #### Selecting an area of interest
 
@@ -169,13 +170,13 @@ If you don’t have any selected sites yet, you can leave this option as
 
 ### Step 3: Visualize results
 
-In this step, you will analyze the land cover data around each site from
-your uploaded rasters.
+In this step, you will analyze raster data around each site from your
+uploaded rasters.
 
 1.  **Select analysis distance**
 
-    Input the distance from the center of each potential site you would
-    like the land cover data analyzed from in meters. This distance is
+    Input the distance from the center of each potential site where
+    raster data should be analyzed (in meters). This distance is
     the distance from the point to each edge of the raster on all four
     sides, so a distances of 1000 meters (1km) would lead to an area of
     analysis of 4 km<sup>2</sup>.
@@ -205,7 +206,7 @@ your uploaded rasters.
 3.  **Statistical Comparison**
 
     The stats tab indicates whether the selected sites are statistically
-    different from the generated sites across land cover values.
+    different from the generated sites across raster-derived values.
 
     ![](inst/app/www/images/Step3_4.png)
 
@@ -247,7 +248,9 @@ You can also visit the above sites to download a raster for your region
 of interest. If your region covers multiple tiles, please merge tiles
 into one file prior to uploading. Please ensure the raster CRS is WGS
 84, and the values for any land cover type are in one layer following
-the numeric codes for the above products.
+the numeric codes for the above products. If your raster has a defined
+CRS but is not in WGS84, the app will reproject it to WGS84 (EPSG:4326)
+before analysis.
 
 The app can also support rasters with continuous values, such as for
 temperature, NDVI, or elevation. For these inputs, please ensure the
