@@ -25,20 +25,21 @@ mod_step2_ui <- function(id) {
               condition = "input.selection_type == 'random'",
               fluidRow(
                 column(4, tags$label("Number of sites:")),
-                column(8, textInput(ns('num_sites'), label = NULL, value = 100, placeholder = "Enter number of sites"))
+                column(8, numericInput(ns('num_sites_random'), label = NULL, value = 100, min = 1, max = 1000000, step = 1, width = "100%"))
               ),
               fluidRow(
-                column(4, tags$label("Distance between sites (m):")),
-                column(8, textInput(ns('dist_site'), label = NULL, value = 0, placeholder = "Enter site distance"))
+                column(4, tags$label("Min. distance between sites (m):")),
+                column(8, numericInput(ns('dist_site'), label = NULL, value = 0, min = 0, step = 1, width = "100%"))
               ),
               fluidRow(
-                column(4, tags$label("Distance from city (km)")),
-                column(8, sliderInput(ns('dist_city'),  label = NULL, min = 0, max = 10, value = 0))
+                column(4, tags$label("Min. distance from city (km):")),
+                column(8, numericInput(ns('dist_city'),  label = NULL, value = 0, min = 0, max = 10, step = 0.1, width = "100%"))
               ),
               fluidRow(
-                column(4, tags$label("Distance from main road (m)")),
-                column(8, sliderInput(ns('dist_road'), label = NULL, min = 0, max = 2000, value = 0))
+                column(4, tags$label("Min. distance from main road (m):")),
+                column(8, numericInput(ns('dist_road'), label = NULL, value = 0, min = 0, max = 2000, step = 1, width = "100%"))
               ),
+              helpText(tags$small("Enter exact minimum thresholds for city (km) and road (m) filters."))
             ),
 
             # Params for village type
@@ -68,10 +69,11 @@ mod_step2_ui <- function(id) {
                   conditionalPanel(
                     condition = sprintf("input['%s'] == 'subset'", ns("site_selection_mode")),
                     numericInput(
-                      ns("num_sites"),
+                      ns("num_sites_village"),
                       label = NULL,
                       value = 100,
                       min = 1,
+                      max = 1000000,
                       step = 1,
                       width = "100%"
                     )
@@ -100,8 +102,8 @@ mod_step2_ui <- function(id) {
                         label = h6("Upload a CSV of potential sites:"),
                         accept = c(".csv"))
             ),
-            actionButton(ns("goStep2"), "Go"),
-            downloadButton(ns("saveFile"), "Save List of Sites")
+            uiOutput(ns("goStep2_ui")),
+            uiOutput(ns("saveFile_ui"))
           ),
         mod_core_mapping_ui(ns("core_mapping_2")),
         div(
@@ -167,10 +169,76 @@ mod_step2_server <- function(id, shape, lc_raster, updatedSites) {
       mapvals$sites <- NULL
     })
 
-    # Validate num_sites input
-    observeEvent(input$num_sites, {
-      req(input$num_sites)
-      validate_text_input(input$num_sites, session, "num_sites", 1000000)
+    is_positive_integer <- function(x) {
+      !is.null(x) && !is.na(x) && is.finite(x) && x >= 1 && x <= 1000000 && x == floor(x)
+    }
+
+    is_non_negative_number <- function(x, max = Inf) {
+      !is.null(x) && !is.na(x) && is.finite(x) && x >= 0 && x <= max
+    }
+
+    has_sites <- reactive({
+      !is.null(mapvals$sites) && nrow(mapvals$sites) > 0
+    })
+
+    step2_inputs_valid <- reactive({
+      req(input$selection_type)
+
+      if (is.null(mapvals$sf)) {
+        return(FALSE)
+      }
+
+      if (input$selection_type == 'random') {
+        return(
+          is_positive_integer(input$num_sites_random) &&
+            is_non_negative_number(input$dist_site) &&
+            is_non_negative_number(input$dist_city, max = 10) &&
+            is_non_negative_number(input$dist_road, max = 2000)
+        )
+      }
+
+      if (input$selection_type == 'village') {
+        req(input$site_selection_mode)
+        if (input$site_selection_mode == 'subset') {
+          return(is_positive_integer(input$num_sites_village))
+        }
+        return(TRUE)
+      }
+
+      if (input$selection_type == 'none') {
+        return(has_sites())
+      }
+
+      FALSE
+    })
+
+    output$goStep2_ui <- renderUI({
+      if (isTRUE(step2_inputs_valid())) {
+        actionButton(ns("goStep2"), "Go")
+      } else {
+        tags$button(
+          type = "button",
+          class = "btn btn-default action-button",
+          style = "width: 100%;",
+          disabled = "disabled",
+          "Go"
+        )
+      }
+    })
+
+    output$saveFile_ui <- renderUI({
+      if (isTRUE(has_sites())) {
+        downloadButton(ns("saveFile"), "Save List of Sites")
+      } else {
+        tags$button(
+          type = "button",
+          class = "btn btn-default",
+          style = "width: 100%;",
+          disabled = "disabled",
+          shiny::icon("download"),
+          " Save List of Sites"
+        )
+      }
     })
 
     observeEvent(input$clear_generated, {
@@ -255,10 +323,13 @@ mod_step2_server <- function(id, shape, lc_raster, updatedSites) {
       sites_filter <- NULL
       if(input$selection_type == 'village'){
           sites_filter <- get_village_points(mapvals$sf, in_app = TRUE)
+          if (is.null(sites_filter)) {
+            return(NULL)
+          }
           if(input$site_selection_mode == 'subset'){
-            req(input$num_sites)
+            req(input$num_sites_village)
 
-            n_requested <- as.numeric(input$num_sites)
+            n_requested <- as.numeric(input$num_sites_village)
             n_available <- nrow(sites_filter)
             if (is.na(n_requested) || n_requested <= 0) {
               showNotification("Please enter a valid positive number of sites.", type = "error")
@@ -282,13 +353,25 @@ mod_step2_server <- function(id, shape, lc_raster, updatedSites) {
             }
           }
       } else if(input$selection_type == 'random'){
-        req(input$num_sites)
+        req(input$num_sites_random)
         sites_filter <- get_random_points(mapvals$sf,
-                                          as.numeric(input$num_sites),
+                                          as.numeric(input$num_sites_random),
                                           as.numeric(input$dist_site),
                                           as.numeric(input$dist_road),
-                                          as.numeric(input$dist_city),
+                                          as.numeric(input$dist_city) * 1000,
                                           in_app = TRUE)
+      } else if (input$selection_type == 'none') {
+        if (!isTRUE(has_sites())) {
+          showNotification("Please provide selected sites or choose a sampling procedure.", type = "error")
+          return(NULL)
+        }
+        mapvals$sites <- mapvals$sites %>%
+          dplyr::mutate(site = as.character(site))
+        return(NULL)
+      }
+
+      if (is.null(sites_filter)) {
+        return(NULL)
       }
 
       sites_filter <- sites_filter %>%

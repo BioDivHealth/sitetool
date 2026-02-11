@@ -152,7 +152,7 @@ utm_crs <- function(sf_obj) {
 #' @param n_points int. number of points to find
 #' @param min_dist int. minimum distance between sampled points
 #' @param road_dist int. distance to the nearest road in meters.
-#' @param city_dist int. points must be futher from cities than this distance.
+#' @param city_dist int. points must be further from cities than this distance, in meters.
 #' @param crs the four-digit code for the coordinate reference system of the data. Default is EPSG:4326
 #' @param in_app if in shiny version, adds notifications
 #'
@@ -378,4 +378,3 @@ get_village_points <- function(area, crs = 4326, in_app = FALSE) {
 
   return(sites)
 }
-

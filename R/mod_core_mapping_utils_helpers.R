@@ -125,7 +125,7 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
     if (!is.null(coltab)) {
       # Construct hex colors from RGB columns
       coltab <- coltab[!(coltab$red == 0 & coltab$green == 0 & coltab$blue == 0), ]
-      colors <- rgb(coltab$red, coltab$green, coltab$blue, maxColorValue = 255)
+      colors <- grDevices::rgb(coltab$red, coltab$green, coltab$blue, maxColorValue = 255)
       values <- if ("value" %in% names(coltab)) coltab$value else coltab[[1]]
       labels <- NULL
       if (!is.null(terra::levels(r)[[1]]) && all(c("code", "cover") %in% names(terra::levels(r)[[1]]))) {
