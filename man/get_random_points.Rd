@@ -24,7 +24,7 @@ or a sf object containing a polygon representing the search area.}
 
 \item{road_dist}{int. distance to the nearest road in meters.}
 
-\item{city_dist}{int. points must be futher from cities than this distance.}
+\item{city_dist}{int. points must be further from cities than this distance, in meters.}
 
 \item{crs}{the four-digit code for the coordinate reference system of the data. Default is EPSG:4326}
 
