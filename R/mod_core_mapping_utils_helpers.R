@@ -29,48 +29,84 @@ reset_map <- function(map, draw){
 }
 
 
+sync_draw_toolbar <- function(map, draw = FALSE, clear_features = FALSE) {
+  if (isTRUE(clear_features) || !isTRUE(draw)) {
+    map <- map %>%
+      leaflet.extras::removeDrawToolbar(clearFeatures = clear_features)
+  }
+
+  if (isTRUE(draw)) {
+    map <- map %>%
+      leaflet.extras::addDrawToolbar(
+        rectangleOptions = TRUE,
+        polylineOptions = FALSE,
+        circleOptions = FALSE,
+        markerOptions = FALSE,
+        circleMarkerOptions = FALSE,
+        singleFeature = TRUE,
+        polygonOptions = FALSE
+      )
+  }
+
+  map
+}
+
+
 
 map_points <- function(map, sites) {
-  if (!is.null(sites) && nrow(sites) > 0) {
-    coords <- sf::st_coordinates(sites)
-    map %>%
-      leaflet::addCircleMarkers(
-        data = sites,
-        lng = coords[, 1],
-        lat = coords[, 2],
-        popup = paste0(
-          "<strong>Site: </strong>", sites$site,
-          "<br><strong>LAT: </strong>", round(coords[, 2], 5),
-          "<br><strong>LNG: </strong>", round(coords[, 1], 5)
-        ),
-        color = ifelse(sites$input_site, "red", "blue"),
-        radius = 5,
-        fillOpacity = 0.8
-      ) %>%
-      leaflet::addLegend(
-        position = "bottomright",
-        colors = c("red", "blue"),
-        labels = c("Selected Sites", "Generated Sites")
-      )
-  } else {
-    map
+  map <- map %>%
+    leaflet::clearGroup("Sites") %>%
+    leaflet::removeControl(layerId = "sites_legend")
+
+  if (is.null(sites) || nrow(sites) == 0) {
+    return(map)
   }
+
+  coords <- sf::st_coordinates(sites)
+  map %>%
+    leaflet::addCircleMarkers(
+      data = sites,
+      lng = coords[, 1],
+      lat = coords[, 2],
+      popup = paste0(
+        "<strong>Site: </strong>", sites$site,
+        "<br><strong>LAT: </strong>", round(coords[, 2], 5),
+        "<br><strong>LNG: </strong>", round(coords[, 1], 5)
+      ),
+      color = ifelse(sites$input_site, "red", "blue"),
+      radius = 5,
+      fillOpacity = 0.8,
+      group = "Sites",
+      layerId = sites$site_id
+    ) %>%
+    leaflet::addLegend(
+      position = "bottomright",
+      colors = c("red", "blue"),
+      labels = c("Selected Sites", "Generated Sites"),
+      layerId = "sites_legend"
+    )
 }
 
 
 draw_sf <- function(map, sf_obj, draw=F, zoom_box=FALSE) {
-  bbx = sf::st_bbox(sf_obj)
+  if (is.null(sf_obj)) {
+    return(map %>% leaflet::clearGroup("ROI"))
+  }
+
+  bbx <- sf::st_bbox(sf_obj)
 
   map <- map %>%
-    reset_map(draw=draw)%>%
-    leaflet::addPolygons(data = sf_obj, color = "#5365FF", fillOpacity = 0.2)
+    leaflet::clearGroup("ROI") %>%
+    leaflet::addPolygons(data = sf_obj, color = "#5365FF", fillOpacity = 0.2, group = "ROI")
 
-
-  if(zoom_box){
-    map <- map%>%
-      leaflet::fitBounds(lng1 = bbx[[1]], lat1 = bbx[[2]],
-                         lng2 = bbx[[3]], lat2 = bbx[[4]])
+  if (zoom_box) {
+    map <- map %>%
+      leaflet::fitBounds(
+        lng1 = bbx[[1]], lat1 = bbx[[2]],
+        lng2 = bbx[[3]], lat2 = bbx[[4]]
+      )
   }
+
   map
 }
 
@@ -111,7 +147,38 @@ add_raster <- function(map, r){
   }
 }
 
+raster_legend_id <- function(name) {
+  safe_name <- gsub("[^A-Za-z0-9_]", "_", as.character(name))
+  paste0("raster_legend_", safe_name)
+}
+
+
+clear_raster_stack <- function(map, raster_names = character(0)) {
+  map <- map %>%
+    leaflet::clearImages() %>%
+    leaflet::removeLayersControl()
+
+  if (length(raster_names) > 0) {
+    for (name in raster_names) {
+      map <- map %>%
+        leaflet::clearGroup(name) %>%
+        leaflet::removeControl(layerId = raster_legend_id(name))
+    }
+  }
+
+  map
+}
+
+
 add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
+  if (is.null(rasters) || length(rasters) == 0) {
+    return(map)
+  }
+
+  if (is.null(names(rasters)) || any(!nzchar(names(rasters)))) {
+    names(rasters) <- paste0("Raster ", seq_along(rasters))
+  }
+
   for (name in names(rasters)) {
     r <- rasters[[name]]
 
@@ -139,18 +206,19 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
       pal <- leaflet::colorFactor(palette = colors, domain = labels, levels = labels)
 
       # Add raster and legend
-      map <- map%>%
-        leaflet::addRasterImage(r, colors = colors, opacity = 0.8, group=name) %>%
-        leaflegend::addLegendFactor(
-          pal = pal,
-          values = factor(labels, levels = labels),
-          group = name,
-          title = name,
-          position = "bottomright",
-          orientation = "horizontal",
-          width = 5,
-          height = 5
-        )
+        map <- map%>%
+          leaflet::addRasterImage(r, colors = colors, opacity = 0.8, group=name) %>%
+          leaflegend::addLegendFactor(
+            pal = pal,
+            values = factor(labels, levels = labels),
+            group = name,
+            title = name,
+            position = "bottomright",
+            orientation = "horizontal",
+            width = 5,
+            height = 5,
+            layerId = raster_legend_id(name)
+          )
 
     } else {
       # Continuous raster
@@ -167,18 +235,19 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
       pal <- leaflet::colorNumeric(palette = rev(hcl.colors(10, "Terrain")),
                                    domain = c(min_val, max_val))
 
-      map <- map %>%
-        leaflet::addRasterImage(r, colors = pal, opacity = 0.8, group = name) %>%
-        leaflegend::addLegendNumeric(
-          pal = pal,
-          values = vals_sample,
-          title = name,
-          group = name,
-          position = "bottomleft",
-          orientation = "horizontal",
-          width = 150,
-          height = 20
-        )
+        map <- map %>%
+          leaflet::addRasterImage(r, colors = pal, opacity = 0.8, group = name) %>%
+          leaflegend::addLegendNumeric(
+            pal = pal,
+            values = vals_sample,
+            title = name,
+            group = name,
+            position = "bottomleft",
+            orientation = "horizontal",
+            width = 150,
+            height = 20,
+            layerId = raster_legend_id(name)
+          )
     }
   }
 

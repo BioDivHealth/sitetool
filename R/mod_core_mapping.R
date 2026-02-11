@@ -39,67 +39,132 @@ mod_core_mapping_ui <- function(id) {
 #' @noRd
 mod_core_mapping_server <- function(id, common){
   moduleServer(id, function(input, output, session){
-    ns <- session$ns
+    map_ready <- shiny::reactiveVal(FALSE)
+    raster_groups <- shiny::reactiveVal(character(0))
+    draw_toolbar_loaded <- shiny::reactiveVal(TRUE)
 
-    # Render initial Leaflet map
+    map_proxy <- function() {
+      leaflet::leafletProxy("map", session = session)
+    }
+
+    # Render initial Leaflet map once
     output$map <- leaflet::renderLeaflet({
+      initial_bmap <- isolate(input$bmap)
+      if (is.null(initial_bmap) || !nzchar(initial_bmap)) {
+        initial_bmap <- "OpenStreetMap"
+      }
+
       leaflet::leaflet() %>%
         leaflet::setView(lng = 0, lat = 20, zoom = 2) %>%
-        leaflet::addProviderTiles(input$bmap) %>%
+        leaflet::addProviderTiles(initial_bmap, group = "BaseMap") %>%
         leaflet::addScaleBar(position = "bottomleft") %>%
         leaflet::addMeasure() %>%
         leaflet.extras::addDrawToolbar(
+          rectangleOptions = TRUE,
           polylineOptions = FALSE,
           circleOptions = FALSE,
-          rectangleOptions = TRUE,
           markerOptions = FALSE,
           circleMarkerOptions = FALSE,
-          singleFeature = FALSE,
+          singleFeature = TRUE,
           polygonOptions = FALSE
         )
     })
 
-    # Proxy for updating the map
-    proxy <- leaflet::leafletProxy("map")
+    # Mark map as ready when widget is mounted
+    observeEvent(input$map_zoom, {
+      map_ready(TRUE)
+    }, once = TRUE, ignoreNULL = TRUE)
+
+    # Draw toolbar updates only
+    observe({
+      req(map_ready())
+
+      draw_enabled <- isTRUE(common$draw)
+      toolbar_loaded <- isolate(draw_toolbar_loaded())
+
+      if (!draw_enabled && !toolbar_loaded) {
+        return()
+      }
+
+      map_proxy() %>%
+        sync_draw_toolbar(
+          draw = draw_enabled,
+          clear_features = !draw_enabled
+        )
+
+      draw_toolbar_loaded(draw_enabled)
+    })
 
     # --- (1) Base map changes ---
     observeEvent(input$bmap, {
-      req(input$bmap)
+      req(map_ready(), input$bmap)
 
-      # Store current view
-      center_lat <- isolate(input$map_center$lat)
-      center_lng <- isolate(input$map_center$lng)
-      zoom_level <- isolate(input$map_zoom)
-
-      proxy %>%
+      map_proxy() %>%
         leaflet::clearGroup("BaseMap") %>%
         leaflet::addProviderTiles(input$bmap, group = "BaseMap")
+    }, ignoreInit = TRUE)
 
-      if (!is.null(common$sf)){
-        proxy%>%
-          draw_sf(common$sf, common$draw, zoom_box=FALSE)
+    # --- (2) ROI updates ---
+    observe({
+      req(map_ready())
+
+      sf_obj <- common$sf
+      draw_enabled <- isTRUE(isolate(common$draw))
+
+      if (is.null(sf_obj)) {
+        map_proxy() %>% leaflet::clearGroup("ROI")
+        return()
       }
 
-      if (!is.null(common$raster)){
-        proxy%>%
-          draw_sf(common$sf, common$draw, zoom_box=FALSE)%>%
-          add_raster_stack(common$raster)
+      common$raster <- NULL
+
+      proxy <- map_proxy()
+
+      if (draw_enabled) {
+        proxy <- proxy %>% leaflet::clearShapes()
       }
 
-      if (!is.null(common$sites)){
-        proxy%>%
-          draw_sf(common$sf, common$draw, zoom_box=FALSE)%>%
-          map_points(common$sites)
-      }
-
-      # Restore current view
-      if (!is.null(center_lat) && !is.null(center_lng) && !is.null(zoom_level)) {
-        proxy %>% leaflet::setView(lng = center_lng, lat = center_lat, zoom = zoom_level)
-      }
+      proxy %>%
+        draw_sf(sf_obj, zoom_box = TRUE)
     })
 
-    # --- (2) Bounding box drawn ---
+    # --- (3) Raster layer updates ---
+    observe({
+      req(map_ready())
+
+      previous_groups <- isolate(raster_groups())
+      raster_stack <- common$raster
+
+      proxy <- map_proxy() %>%
+        clear_raster_stack(previous_groups)
+
+      if (is.null(raster_stack) || length(raster_stack) == 0) {
+        raster_groups(character(0))
+        return()
+      }
+
+      if (is.null(names(raster_stack)) || any(!nzchar(names(raster_stack)))) {
+        names(raster_stack) <- paste0("Raster ", seq_along(raster_stack))
+      }
+
+      proxy %>%
+        add_raster_stack(raster_stack)
+
+      raster_groups(names(raster_stack))
+    })
+
+    # --- (4) Sites added or updated ---
+    observe({
+      req(map_ready())
+
+      map_proxy() %>%
+        map_points(common$sites)
+    })
+
+    # --- (5) Bounding box drawn ---
     observeEvent(input$map_draw_new_feature, {
+      req(map_ready())
+
       coords <- unlist(input$map_draw_new_feature$geometry$coordinates)
       xy <- matrix(c(coords[c(TRUE, FALSE)], coords[c(FALSE, TRUE)]), ncol = 2)
       colnames(xy) <- c("longitude", "latitude")
@@ -122,106 +187,10 @@ mod_core_mapping_server <- function(id, common){
           common$sf <- bbox_sf
           common$bbox_drawn <- TRUE
         } else {
-          proxy %>% reset_map(draw = common$draw)
+          map_proxy() %>%
+            sync_draw_toolbar(draw = isTRUE(common$draw), clear_features = TRUE)
           showNotification("Error with selected area.", type = "error")
         }
-      }
-    })
-
-    # --- (3) Raster layer updates ---
-    observeEvent(common$raster, {
-      # Add or remove raster
-      if (!is.null(common$raster)) {
-        # proxy <- leaflet::leafletProxy("map")%>%
-        #   leaflet::clearGroup("BaseMap") %>%
-        #   leaflet::addProviderTiles(input$bmap, group = "BaseMap")
-        # Draw bounding box if present
-        if (!is.null(common$sf)) {
-          proxy <- proxy %>% draw_sf(common$sf, common$draw, zoom_box = FALSE)
-        }
-        # Add site points if available
-        if (!is.null(common$sites)) {
-          proxy <- proxy %>% map_points(common$sites)
-        }
-        proxy <- proxy %>% add_raster_stack(common$raster)
-      }
-      # Need to recreate map bc otherwise raster layer toggle is not removed
-      else{
-        # Store current view
-        center_lat <- isolate(input$map_center$lat)
-        center_lng <- isolate(input$map_center$lng)
-        zoom_level <- isolate(input$map_zoom)
-
-        output$map <- leaflet::renderLeaflet({
-          leaflet::leaflet() %>%
-            leaflet::setView(lng = 0, lat = 20, zoom = 2) %>%
-            leaflet::addProviderTiles(input$bmap) %>%
-            leaflet::addScaleBar(position = "bottomleft") %>%
-            leaflet::addMeasure() %>%
-            leaflet.extras::addDrawToolbar(
-              polylineOptions = FALSE,
-              circleOptions = FALSE,
-              rectangleOptions = TRUE,
-              markerOptions = FALSE,
-              circleMarkerOptions = FALSE,
-              singleFeature = FALSE,
-              polygonOptions = FALSE
-            )
-        })
-        proxy <- leaflet::leafletProxy("map")
-        if (!is.null(center_lat) && !is.null(center_lng) && !is.null(zoom_level)) {
-          proxy %>% leaflet::setView(lng = center_lng, lat = center_lat, zoom = zoom_level)
-        }
-
-        if (!is.null(common$sf)) {
-          proxy <- proxy %>% draw_sf(common$sf, common$draw, zoom_box = FALSE)
-        }
-        # Add site points if available
-        if (!is.null(common$sites)) {
-          proxy <- proxy %>% map_points(common$sites)
-        }
-      }
-
-    }, ignoreNULL = FALSE)
-
-    # --- (4) Sites added or updated ---
-    observeEvent(common$sites, {
-
-      if (!is.null(common$sites) && nrow(common$sites) > 0) {
-        proxy <- proxy %>%
-          reset_map(common$draw)%>%
-          draw_sf(common$sf, common$draw, zoom_box = FALSE)%>%
-          map_points(common$sites)
-      }
-      else{
-        proxy <- leaflet::leafletProxy("map")%>%
-          leaflet::clearGroup("BaseMap") %>%
-          leaflet::addProviderTiles(input$bmap, group = "BaseMap")
-
-          if (!is.null(common$sf)) {
-            proxy <- proxy %>% draw_sf(common$sf, common$draw, zoom_box = FALSE)
-          }
-          if (!is.null(common$raster)) {
-            proxy <- proxy %>% add_raster_stack(common$raster)
-          }
-      }
-
-    }, ignoreNULL = FALSE)
-
-    observeEvent(common$draw, {
-      if (!is.null(common$draw) && common$draw) {
-        proxy %>% reset_map(common$draw)
-      }
-    })
-
-
-    observeEvent(common$sf, {
-      if (!is.null(common$sf)) {
-        common$raster = NULL
-        proxy %>%
-          draw_sf(common$sf, common$draw, zoom_box = TRUE) %>%
-          leaflet::clearGroup("BaseMap") %>%
-          leaflet::addProviderTiles(input$bmap, group = "BaseMap")
       }
     })
 
