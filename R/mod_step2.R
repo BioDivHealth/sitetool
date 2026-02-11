@@ -142,7 +142,7 @@ mod_step2_server <- function(id, shape, lc_raster, updatedSites) {
       mapvals$sf <- shape()
     })
 
-    observe({
+    observeEvent(updatedSites(), {
       req(updatedSites())
 
       site_list <- updatedSites() %>%
@@ -150,11 +150,12 @@ mod_step2_server <- function(id, shape, lc_raster, updatedSites) {
         dplyr::distinct() %>%
         sf::st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
 
+      current_sites <- isolate(mapvals$sites)
 
-      if(!is.null(mapvals$sites) && !identical(site_list, mapvals$sites)){
+      if (is.null(current_sites) || !identical(site_list, current_sites)) {
         mapvals$sites <- site_list
       }
-    })
+    }, ignoreNULL = TRUE)
 
     observeEvent(input$input_sites, {
       if(input$input_sites == 'add_points_mode'){

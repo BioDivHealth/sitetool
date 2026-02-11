@@ -32,6 +32,25 @@ get_land_area <- function(shape){
   }
 }
 
+retry_with_backoff <- function(expr_fun, max_attempts = 3, base_delay = 0.5, max_delay = 4) {
+  last_error <- NULL
+
+  for (attempt in seq_len(max_attempts)) {
+    result <- tryCatch(expr_fun(), error = function(e) e)
+    if (!inherits(result, "error")) {
+      return(result)
+    }
+
+    last_error <- result
+    if (attempt < max_attempts) {
+      delay <- min(max_delay, base_delay * (2^(attempt - 1)))
+      Sys.sleep(delay)
+    }
+  }
+
+  stop(last_error$message)
+}
+
 #' Get OpenStreetMap roads data within a bounding box
 #'
 #' A function returning a shapefile of the roads within a bounding box. Uses
@@ -47,17 +66,19 @@ get_land_area <- function(shape){
 
 get_roads <- function(bbox, crs = 4326, in_app = FALSE) {
   tryCatch({
-    roads_query <- osmdata::opq(bbox = bbox, timeout = 60) %>%
-      osmdata::add_osm_feature(
-        key = "highway",
-        value = c("motorway", "primary", "secondary", "tertiary", "residential")
-      )
+    roads <- retry_with_backoff(function() {
+      roads_query <- osmdata::opq(bbox = bbox, timeout = 60) %>%
+        osmdata::add_osm_feature(
+          key = "highway",
+          value = c("motorway", "primary", "secondary", "tertiary", "residential")
+        )
 
-    roads <- osmdata::osmdata_sf(roads_query)$osm_lines
+      osmdata::osmdata_sf(roads_query)$osm_lines
+    })
 
     # If no roads returned, return empty sf
     if (is.null(roads) || nrow(roads) == 0) {
-      roads <- sf::st_sf(geometry = sf::st_sfc())
+      roads <- sf::st_sf(geometry = sf::st_sfc(crs = sf::st_crs(crs)))
       if (in_app) {
         shiny::showNotification("No roads found in this bounding box.", type = "warning")
       }
@@ -74,7 +95,7 @@ get_roads <- function(bbox, crs = 4326, in_app = FALSE) {
       message("Error fetching roads: ", e$message)
     }
     # Return empty sf to prevent app crash
-    return(sf::st_sf(geometry = sf::st_sfc()))
+    return(sf::st_sf(geometry = sf::st_sfc(crs = sf::st_crs(crs))))
   })
 }
 
@@ -95,21 +116,24 @@ get_roads <- function(bbox, crs = 4326, in_app = FALSE) {
 
 get_cities <- function(bbox, crs = 4326, in_app = FALSE) {
   tryCatch({
-    cities_query <- osmdata::opq(bbox = bbox, timeout = 60) %>%
-      osmdata::add_osm_feature(
-        key = "place",
-        value = c("city", "borough", "suburb", "quarter", "village", "town", "hamlet")
-      )
+    cities <- retry_with_backoff(function() {
+      cities_query <- osmdata::opq(bbox = bbox, timeout = 60) %>%
+        osmdata::add_osm_feature(
+          key = "place",
+          value = c("city", "borough", "suburb", "quarter", "village", "town", "hamlet")
+        )
 
-    cities <- osmdata::osmdata_sf(cities_query)$osm_points %>%
-      sf::st_set_crs(crs)
+      osmdata::osmdata_sf(cities_query)$osm_points
+    })
 
     # If no points returned, return empty sf
     if (is.null(cities) || nrow(cities) == 0) {
-      cities <- sf::st_sf(geometry = sf::st_sfc())
+      cities <- sf::st_sf(geometry = sf::st_sfc(crs = sf::st_crs(crs)))
       if (in_app) {
         shiny::showNotification("No cities found in this bounding box.", type = "warning")
       }
+    } else {
+      cities <- sf::st_set_crs(cities, crs)
     }
 
     return(cities)
@@ -122,13 +146,92 @@ get_cities <- function(bbox, crs = 4326, in_app = FALSE) {
       message("Error fetching cities: ", e$message)
     }
     # Return empty sf so app doesn't break
-    return(sf::st_sf(geometry = sf::st_sfc()))
+    return(sf::st_sf(geometry = sf::st_sfc(crs = sf::st_crs(crs))))
   })
 }
 
 check_distance <- function(points, shape, distance){
   exclude <- sf::st_is_within_distance(points, shape, distance)
   points[!sapply(exclude, any)]
+}
+
+
+# In-memory cache for OSM queries (per R session)
+.osm_query_cache <- new.env(parent = emptyenv())
+OSM_QUERY_CACHE_TTL_SEC <- 15 * 60
+OSM_QUERY_CACHE_MAX_ENTRIES <- 8
+
+normalize_bbox_key <- function(bbox, digits = 4) {
+  bbox_vals <- if (!is.null(names(bbox)) && all(c("xmin", "ymin", "xmax", "ymax") %in% names(bbox))) {
+    bbox[c("xmin", "ymin", "xmax", "ymax")]
+  } else {
+    bbox[seq_len(4)]
+  }
+
+  bbox_vals <- as.numeric(bbox_vals)
+  bbox_vals <- round(bbox_vals, digits = digits)
+
+  paste(formatC(bbox_vals, format = "f", digits = digits), collapse = "|")
+}
+
+make_osm_cache_key <- function(type, bbox) {
+  paste(type, normalize_bbox_key(bbox), sep = "::")
+}
+
+prune_osm_cache <- function(max_entries = OSM_QUERY_CACHE_MAX_ENTRIES) {
+  keys <- ls(envir = .osm_query_cache, all.names = TRUE)
+  if (length(keys) <= max_entries) {
+    return(invisible(NULL))
+  }
+
+  access_time <- vapply(keys, function(k) {
+    entry <- .osm_query_cache[[k]]
+    if (!is.null(entry$last_access)) {
+      as.numeric(entry$last_access)
+    } else {
+      0
+    }
+  }, numeric(1))
+
+  n_drop <- length(keys) - max_entries
+  keys_to_drop <- names(sort(access_time))[seq_len(n_drop)]
+  rm(list = keys_to_drop, envir = .osm_query_cache)
+
+  invisible(NULL)
+}
+
+get_osm_cache <- function(key, ttl_sec = OSM_QUERY_CACHE_TTL_SEC) {
+  entry <- .osm_query_cache[[key]]
+  if (is.null(entry)) {
+    return(NULL)
+  }
+
+  if (is.null(entry$data) || is.null(entry$cached_at)) {
+    .osm_query_cache[[key]] <- NULL
+    return(NULL)
+  }
+
+  age_sec <- as.numeric(difftime(Sys.time(), entry$cached_at, units = "secs"))
+  if (!is.finite(age_sec) || age_sec > ttl_sec) {
+    .osm_query_cache[[key]] <- NULL
+    return(NULL)
+  }
+
+  entry$last_access <- Sys.time()
+  .osm_query_cache[[key]] <- entry
+
+  entry$data
+}
+
+set_osm_cache <- function(key, data, max_entries = OSM_QUERY_CACHE_MAX_ENTRIES) {
+  .osm_query_cache[[key]] <- list(
+    data = data,
+    cached_at = Sys.time(),
+    last_access = Sys.time()
+  )
+
+  prune_osm_cache(max_entries = max_entries)
+  invisible(NULL)
 }
 
 # Automatically choose a UTM CRS based on centroid
@@ -211,16 +314,25 @@ get_random_points <- function(area, n_points, min_dist = 0, road_dist = 0, city_
   if (in_app) progress$inc(detail = "Preparing data", amount = 0.1)
 
   target_crs <- utm_crs(bbox_sf)
+  bbox <- sf::st_bbox(bbox_sf)
 
   land <- get_land_area(bbox_sf)
   land_proj <- sf::st_transform(land, target_crs)
 
   if (road_dist > 0) {
     if (in_app) progress$inc(detail = 'Getting road data', 0.1)
-    roads <- get_roads(sf::st_bbox(bbox_sf), in_app=in_app)
+    roads_key <- make_osm_cache_key("roads", bbox)
+    roads <- get_osm_cache(roads_key)
+
     if (is.null(roads)) {
+      roads <- get_roads(bbox, in_app = in_app)
+      if (!is.null(roads) && nrow(roads) > 0) {
+        set_osm_cache(roads_key, roads)
+      }
+    }
+
+    if (is.null(roads) || nrow(roads) == 0) {
       road_dist <- 0
-      if (in_app) showNotification("Could not get roads, setting road_dist to 0", type = "warning")
     } else {
       roads <- sf::st_transform(roads, target_crs)
     }
@@ -228,21 +340,44 @@ get_random_points <- function(area, n_points, min_dist = 0, road_dist = 0, city_
 
   if (city_dist > 0) {
     if (in_app) progress$inc(detail = 'Getting city data', 0.1)
-    cities <- get_cities(sf::st_bbox(bbox_sf), in_app=in_app)
+    cities_key <- make_osm_cache_key("cities", bbox)
+    cities <- get_osm_cache(cities_key)
+
     if (is.null(cities)) {
+      cities <- get_cities(bbox, in_app = in_app)
+      if (!is.null(cities) && nrow(cities) > 0) {
+        set_osm_cache(cities_key, cities)
+      }
+    }
+
+    if (is.null(cities) || nrow(cities) == 0) {
       city_dist <- 0
-      if (in_app) showNotification("Could not get cities, setting city_dist to 0", type = "warning")
     } else {
       cities <- sf::st_transform(cities, target_crs)
     }
   }
 
   foundPoints <- sf::st_sfc(crs = target_crs)
+  loop_start <- Sys.time()
+  loop_iteration <- 0
+  stalled_iterations <- 0
+
+  max_iterations <- min(5000, max(200, n_points * 30))
+  max_seconds <- min(120, max(45, n_points * 0.6))
+  max_stalled_iterations <- 30
 
   if (in_app) progress$inc(detail = "Sampling area", amount = 0.1)
 
   while (length(foundPoints) < n_points) {
-    sample_n <- (n_points - length(foundPoints)) * 5
+    loop_iteration <- loop_iteration + 1
+    elapsed_sec <- as.numeric(difftime(Sys.time(), loop_start, units = "secs"))
+
+    if (loop_iteration > max_iterations || elapsed_sec > max_seconds || stalled_iterations >= max_stalled_iterations) {
+      break
+    }
+
+    points_before <- length(foundPoints)
+    sample_n <- max((n_points - points_before) * 5, 25)
     new_points <- sf::st_sample(land_proj, sample_n)
 
     if (road_dist > 0) {
@@ -275,6 +410,28 @@ get_random_points <- function(area, n_points, min_dist = 0, road_dist = 0, city_
     }
 
     foundPoints <- c(foundPoints, new_points)
+
+    if (length(foundPoints) == points_before) {
+      stalled_iterations <- stalled_iterations + 1
+    } else {
+      stalled_iterations <- 0
+    }
+  }
+
+  if (length(foundPoints) < n_points) {
+    elapsed <- round(as.numeric(difftime(Sys.time(), loop_start, units = "secs")), 1)
+    msg <- paste0(
+      "Could only generate ", length(foundPoints), " of ", n_points,
+      " points after ", loop_iteration, " iterations (", elapsed, " seconds). ",
+      "Try reducing minimum distance thresholds or requesting fewer points."
+    )
+
+    if (in_app) {
+      shiny::showNotification(msg, type = "error")
+      return(NULL)
+    }
+
+    stop(msg)
   }
 
   if (length(foundPoints) > n_points) {

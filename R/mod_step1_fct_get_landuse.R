@@ -49,6 +49,95 @@ format_tile_name <- function(lat, lon, year=2019) {
 }
 
 
+# In-memory cache for remote rasters (per R session)
+.remote_raster_cache <- new.env(parent = emptyenv())
+REMOTE_RASTER_CACHE_TTL_SEC <- 20 * 60
+REMOTE_RASTER_CACHE_MAX_ENTRIES <- 6
+
+normalize_raster_cache_bbox <- function(area, digits = 3) {
+  bbox <- if (inherits(area, c("sf", "sfc"))) {
+    sf::st_bbox(area)
+  } else {
+    area
+  }
+
+  bbox_vals <- if (!is.null(names(bbox)) && all(c("xmin", "ymin", "xmax", "ymax") %in% names(bbox))) {
+    bbox[c("xmin", "ymin", "xmax", "ymax")]
+  } else {
+    bbox[seq_len(4)]
+  }
+
+  bbox_vals <- as.numeric(bbox_vals)
+  bbox_vals <- round(bbox_vals, digits = digits)
+
+  paste(formatC(bbox_vals, format = "f", digits = digits), collapse = "|")
+}
+
+make_remote_raster_cache_key <- function(product, area, digits = 3) {
+  paste(product, normalize_raster_cache_bbox(area, digits = digits), sep = "::")
+}
+
+prune_remote_raster_cache <- function(max_entries = REMOTE_RASTER_CACHE_MAX_ENTRIES) {
+  keys <- ls(envir = .remote_raster_cache, all.names = TRUE)
+  if (length(keys) <= max_entries) {
+    return(invisible(NULL))
+  }
+
+  access_time <- vapply(keys, function(k) {
+    entry <- .remote_raster_cache[[k]]
+    if (!is.null(entry$last_access)) {
+      as.numeric(entry$last_access)
+    } else {
+      0
+    }
+  }, numeric(1))
+
+  n_drop <- length(keys) - max_entries
+  keys_to_drop <- names(sort(access_time))[seq_len(n_drop)]
+  rm(list = keys_to_drop, envir = .remote_raster_cache)
+
+  invisible(NULL)
+}
+
+get_remote_raster_cache <- function(key, ttl_sec = REMOTE_RASTER_CACHE_TTL_SEC) {
+  entry <- .remote_raster_cache[[key]]
+  if (is.null(entry)) {
+    return(NULL)
+  }
+
+  if (is.null(entry$raster) || is.null(entry$cached_at) || !inherits(entry$raster, "SpatRaster")) {
+    .remote_raster_cache[[key]] <- NULL
+    return(NULL)
+  }
+
+  age_sec <- as.numeric(difftime(Sys.time(), entry$cached_at, units = "secs"))
+  if (!is.finite(age_sec) || age_sec > ttl_sec) {
+    .remote_raster_cache[[key]] <- NULL
+    return(NULL)
+  }
+
+  entry$last_access <- Sys.time()
+  .remote_raster_cache[[key]] <- entry
+
+  entry$raster
+}
+
+set_remote_raster_cache <- function(key, raster, max_entries = REMOTE_RASTER_CACHE_MAX_ENTRIES) {
+  if (!inherits(raster, "SpatRaster")) {
+    return(invisible(NULL))
+  }
+
+  .remote_raster_cache[[key]] <- list(
+    raster = raster,
+    cached_at = Sys.time(),
+    last_access = Sys.time()
+  )
+
+  prune_remote_raster_cache(max_entries = max_entries)
+  invisible(NULL)
+}
+
+
 download_rast <- function(url, inapp = FALSE) {
   # GDAL may open https:// GeoTIFFs in streaming mode (slow / can appear to hang)
   # unless we explicitly use /vsicurl/ for random access.
@@ -222,4 +311,3 @@ download_footprint <- function(shape, year=2009, inapp=F) {
 
   return(footprint)
 }
-

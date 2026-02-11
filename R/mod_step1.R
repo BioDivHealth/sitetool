@@ -281,15 +281,26 @@ mod_step1_server <- function(id){
         }) # <- closes withProgress for upload
       } else {
         withProgress(message = 'Downloading raster data', value = 0, {
-          if(input$product == 'ESA WorldCover'){
-            r <- get_worldcover(bbox_sf, inapp=T, tile_limit = 4)
+          cache_key <- make_remote_raster_cache_key(input$product, bbox_sf)
+          r <- get_remote_raster_cache(cache_key)
 
-          }
-          if (input$product == 'SRTM Elevation') {
-            r <- download_elevation(bbox_sf, inapp = TRUE)
-          }
-          if (input$product == 'Human Footprint 2009') {
-            r <- download_footprint(bbox_sf, inapp = TRUE)
+          if (!is.null(r)) {
+            showNotification("Using cached raster for this area.", type = "message")
+          } else {
+            if(input$product == 'ESA WorldCover'){
+              r <- get_worldcover(bbox_sf, inapp=T, tile_limit = 4)
+
+            }
+            if (input$product == 'SRTM Elevation') {
+              r <- download_elevation(bbox_sf, inapp = TRUE)
+            }
+            if (input$product == 'Human Footprint 2009') {
+              r <- download_footprint(bbox_sf, inapp = TRUE)
+            }
+
+            if (!is.null(r)) {
+              set_remote_raster_cache(cache_key, r)
+            }
           }
 
           if (is.null(r)) {
@@ -302,7 +313,9 @@ mod_step1_server <- function(id){
           }
 
           # use input$product as the name
-          mapvals$raster[[input$product]] <- r
+          if (!is.null(r)) {
+            mapvals$raster[[input$product]] <- r
+          }
         }) # <- closes withProgress for download
       }
 

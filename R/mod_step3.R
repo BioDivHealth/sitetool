@@ -24,6 +24,7 @@ mod_step3_ui <- function(id) {
                      max = 100000),
 
         actionButton(ns("goStep3"), "Go"),
+        uiOutput(ns("analysis_status")),
 
         #selectInput(ns("measure"), h6("Select a landcover measure to compare"), "")
       ),
@@ -76,14 +77,95 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
 
     df <- reactiveVal(NULL)
     summary <- reactiveVal(NULL)
+    analysis_stale <- reactiveVal(FALSE)
+    has_analysis <- reactiveVal(FALSE)
+    last_analyzed_site_signature <- reactiveVal(NULL)
+
+    site_geometry_signature <- reactive({
+      req(sites())
+
+      site_data <- sites()
+      if (is.null(site_data) || nrow(site_data) == 0) {
+        return(NULL)
+      }
+
+      coords <- sf::st_coordinates(site_data)
+      sig_df <- data.frame(
+        site_id = as.character(site_data$site_id),
+        longitude = round(coords[, 1], 6),
+        latitude = round(coords[, 2], 6),
+        stringsAsFactors = FALSE
+      )
+
+      sig_df <- sig_df[order(sig_df$site_id, sig_df$longitude, sig_df$latitude), , drop = FALSE]
+      paste(sig_df$site_id, sig_df$longitude, sig_df$latitude, collapse = ";")
+    })
 
     # reset df if sites are reset
     observe({
-      if(is.null(sites())){
+      if (is.null(sites())) {
         df(NULL)
+        summary(NULL)
+        analysis_stale(FALSE)
+        has_analysis(FALSE)
+        last_analyzed_site_signature(NULL)
       }
-      if(is.null(lc_data())){
+      if (is.null(lc_data())) {
         df(NULL)
+        summary(NULL)
+        analysis_stale(FALSE)
+        has_analysis(FALSE)
+        last_analyzed_site_signature(NULL)
+      }
+    })
+
+    observeEvent(site_geometry_signature(), {
+      current_signature <- site_geometry_signature()
+      previous_signature <- isolate(last_analyzed_site_signature())
+
+      if (is.null(current_signature) || is.null(previous_signature) || !isTRUE(has_analysis())) {
+        return(NULL)
+      }
+
+      if (!identical(current_signature, previous_signature)) {
+        df(NULL)
+        summary(NULL)
+
+        if (!isTRUE(analysis_stale())) {
+          shiny::showNotification(
+            "Sites changed in Step 2. Click Go in Step 3 to refresh analysis.",
+            type = "message"
+          )
+        }
+
+        analysis_stale(TRUE)
+      }
+    }, ignoreInit = TRUE)
+
+    output$analysis_status <- renderUI({
+      if (is.null(sites()) || nrow(sites()) == 0) {
+        return(NULL)
+      }
+
+      if (!isTRUE(has_analysis())) {
+        return(
+          tags$small(
+            style = "display:block; color:#555555; margin-top:8px;",
+            "No analysis yet. Click Go to run."
+          )
+        )
+      }
+
+      if (isTRUE(analysis_stale())) {
+        tags$small(
+          style = "display:block; color:#a94442; margin-top:8px;",
+          "Results are out of date. Click Go to refresh."
+        )
+      } else {
+        tags$small(
+          style = "display:block; color:#3c763d; margin-top:8px;",
+          "Results are up to date."
+        )
       }
     })
 
@@ -98,6 +180,8 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
     observeEvent(input$goStep3, {
       req(sites())
       req(lc_data())
+
+      analysis_stale(TRUE)
 
       withProgress(message = "Calculating landcover values", value = 0, {
 
@@ -150,6 +234,10 @@ mod_step3_server <- function(id, sites = NULL, lc_data = NULL, product){
         summarizeRaster(r, rname)
       }) %>% dplyr::bind_rows()
       summary(sum_df)
+
+      last_analyzed_site_signature(site_geometry_signature())
+      has_analysis(TRUE)
+      analysis_stale(FALSE)
     })
 
 
