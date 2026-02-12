@@ -61,7 +61,7 @@ golem_add_external_resources <- function() {
 
   tags$head(
     favicon(ext='png'),
-    tags$link(rel = "icon", type = "image/png", href = "SiteTool_HexLogo.png"),
+    tags$link(rel = "icon", type = "image/png", href = "www/SiteTool_HexLogo.png"),
     bundle_resources(
       path = app_sys("app/www"),
       app_title = "SiteTool"
