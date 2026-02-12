@@ -29,9 +29,7 @@ gradient of other potential sites.
 ![](SiteTool_HexLogo.png){width="174"}
 
 The tool's source code (including the `sitetool` R package) is also
-available for local deployment at
-https://github.com/BioDivHealth/sitetool, which allows larger file
-uploads.
+available for local deployment on GitHub [link hidden for blind review], which allows larger file uploads.
 
 ## Tutorial
 
@@ -230,7 +228,7 @@ The app can support categorical land cover rasters such as:
 3.  [Copernicus Dynamic Land Cover](https://lcviewer.vito.be/)
 
 This repository has a series of Google Earth Engine scripts to assist
-with exporting this data: <https://github.com/BioDivHealth/GEE_Scripts>.
+with exporting this data: [link hidden for blind review].
 You can also visit the above sites to download a raster for your region
 of interest. If your region covers multiple tiles, please merge tiles
 into one file prior to uploading. Please ensure the raster CRS is WGS
@@ -252,6 +250,6 @@ If you have any questions, encounter a problem, or would like to suggest
 improvements:
 
 -   🐛 **Report a bug:** [Open an
-    issue](https://github.com/BioDivHealth/sitetool/issues)
+    issue] *{link hidden for blind review}*
 -   💡 **Suggest a feature:** [Start a
-    discussion](https://github.com/BioDivHealth/sitetool/discussions)
+    discussion] *{link hidden for blind review}*
