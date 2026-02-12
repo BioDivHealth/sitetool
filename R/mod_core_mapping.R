@@ -134,11 +134,19 @@ mod_core_mapping_server <- function(id, common){
 
       previous_groups <- isolate(raster_groups())
       raster_stack <- common$raster
+      sf_obj <- isolate(common$sf)
+      draw_enabled <- isTRUE(isolate(common$draw))
 
       proxy <- map_proxy() %>%
         clear_raster_stack(previous_groups)
 
       if (is.null(raster_stack) || length(raster_stack) == 0) {
+        if (is.null(sf_obj)) {
+          proxy <- proxy %>% leaflet::clearGroup("ROI")
+        } else {
+          proxy <- proxy %>% draw_sf(sf_obj, zoom_box = FALSE)
+        }
+
         raster_groups(character(0))
         return()
       }
@@ -148,6 +156,9 @@ mod_core_mapping_server <- function(id, common){
       }
 
       proxy %>%
+        sync_draw_toolbar(draw = draw_enabled, clear_features = TRUE) %>%
+        leaflet::clearShapes() %>%
+        leaflet::clearGroup("ROI") %>%
         add_raster_stack(raster_stack)
 
       raster_groups(names(raster_stack))

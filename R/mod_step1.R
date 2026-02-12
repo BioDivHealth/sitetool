@@ -123,7 +123,7 @@ mod_step1_server <- function(id){
 
     observeEvent(input$shapefile, {
       # Check if either shapefile or raster file is provided
-      if (is.null(input$shapefile) || !file.exists(input$rastfile$datapath)) {
+      if (is.null(input$shapefile) || is.null(input$shapefile$datapath) || !file.exists(input$shapefile$datapath)) {
         showNotification("Please ensure the shapefile was correctly uploaded.", type = "error")
         return()
       }

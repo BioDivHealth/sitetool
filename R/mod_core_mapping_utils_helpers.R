@@ -29,6 +29,59 @@ reset_map <- function(map, draw){
 }
 
 
+numeric_raster_summary <- function(r, sample_size = 10000) {
+  if (is.null(r) || terra::ncell(r) == 0) {
+    return(NULL)
+  }
+
+  r_single <- r[[1]]
+
+  stats <- tryCatch(
+    terra::global(r_single, c("min", "max"), na.rm = TRUE),
+    error = function(e) NULL
+  )
+
+  if (is.null(stats) || nrow(stats) == 0) {
+    return(NULL)
+  }
+
+  min_val <- suppressWarnings(as.numeric(stats$min[1]))
+  max_val <- suppressWarnings(as.numeric(stats$max[1]))
+
+  if (!is.finite(min_val) || !is.finite(max_val)) {
+    return(NULL)
+  }
+
+  n_target <- max(1, min(as.integer(sample_size), terra::ncell(r_single)))
+
+  vals_sample <- tryCatch({
+    sampled <- terra::spatSample(
+      r_single,
+      size = n_target,
+      method = "random",
+      na.rm = TRUE,
+      values = TRUE,
+      as.df = TRUE
+    )
+    as.numeric(sampled[[1]])
+  }, error = function(e) numeric(0))
+
+  vals_sample <- vals_sample[is.finite(vals_sample)]
+
+  if (length(vals_sample) == 0) {
+    vals_sample <- c(min_val, max_val)
+  }
+
+  if (min_val == max_val) {
+    vals_sample <- c(vals_sample[1], vals_sample[1])
+    min_val <- min_val - 0.5
+    max_val <- max_val + 0.5
+  }
+
+  list(min_val = min_val, max_val = max_val, vals_sample = vals_sample)
+}
+
+
 sync_draw_toolbar <- function(map, draw = FALSE, clear_features = FALSE) {
   if (isTRUE(clear_features) || !isTRUE(draw)) {
     map <- map %>%
@@ -133,8 +186,13 @@ add_raster <- function(map, r){
       leaflet::addRasterLegend(r, opacity = 0.8)
   }
   else{
-    min_val <- min(terra::values(r_plot), na.rm = TRUE)
-    max_val <- max(terra::values(r_plot), na.rm = TRUE)
+    summary_stats <- numeric_raster_summary(r_plot)
+    if (is.null(summary_stats)) {
+      return(map)
+    }
+
+    min_val <- summary_stats$min_val
+    max_val <- summary_stats$max_val
     colors <- rev(hcl.colors(10, palette = "Terrain"))
 
     map <- map%>%
@@ -222,15 +280,14 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
 
     } else {
       # Continuous raster
-      vals_sample <- terra::values(r, mat = FALSE, na.rm = TRUE)
-      vals_sample <- sample(vals_sample, min(10000, length(vals_sample)))  # sample for speed
-
-      min_val <- min(vals_sample)
-      max_val <- max(vals_sample)
-      if (length(unique(vals_sample)) == 1) {
-        min_val <- unique(vals_sample) - 0.5
-        max_val <- unique(vals_sample) + 0.5
+      summary_stats <- numeric_raster_summary(r)
+      if (is.null(summary_stats)) {
+        next
       }
+
+      vals_sample <- summary_stats$vals_sample
+      min_val <- summary_stats$min_val
+      max_val <- summary_stats$max_val
 
       pal <- leaflet::colorNumeric(palette = rev(hcl.colors(10, "Terrain")),
                                    domain = c(min_val, max_val))
