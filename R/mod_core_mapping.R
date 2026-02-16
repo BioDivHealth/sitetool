@@ -63,7 +63,10 @@ mod_core_mapping_server <- function(id, common){
         ) %>%
         leaflet::addMeasure() %>%
         leaflet.extras::addDrawToolbar(
-          rectangleOptions = TRUE,
+          targetGroup = "DrawnROI",
+          rectangleOptions = leaflet.extras::drawRectangleOptions(
+            shapeOptions = leaflet.extras::drawShapeOptions(fill = FALSE, fillOpacity = 0)
+          ),
           polylineOptions = FALSE,
           circleOptions = FALSE,
           markerOptions = FALSE,
@@ -129,7 +132,9 @@ mod_core_mapping_server <- function(id, common){
       proxy <- map_proxy()
 
       if (draw_enabled) {
-        proxy <- proxy %>% leaflet::clearShapes()
+        proxy <- proxy %>%
+          leaflet::clearShapes() %>%
+          leaflet::clearGroup("DrawnROI")
       }
 
       proxy %>%
@@ -163,7 +168,9 @@ mod_core_mapping_server <- function(id, common){
         names(raster_stack) <- paste0("Raster ", seq_along(raster_stack))
       }
 
-      proxy <- proxy %>% leaflet::clearShapes()
+      proxy <- proxy %>%
+        leaflet::clearShapes() %>%
+        leaflet::clearGroup("DrawnROI")
 
       if (is.null(sf_obj)) {
         proxy <- proxy %>%
@@ -214,7 +221,9 @@ mod_core_mapping_server <- function(id, common){
           common$bbox_drawn <- TRUE
         } else {
           if (isTRUE(common$draw)) {
-            map_proxy() %>% leaflet::clearShapes()
+            map_proxy() %>%
+              leaflet::clearShapes() %>%
+              leaflet::clearGroup("DrawnROI")
           } else {
             map_proxy() %>%
               sync_draw_toolbar(draw = FALSE, clear_features = TRUE)

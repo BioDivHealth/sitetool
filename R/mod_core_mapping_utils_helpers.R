@@ -4,10 +4,14 @@ reset_map <- function(map, draw){
   if(draw == 'TRUE'){
     map <- map%>%
       leaflet::clearShapes() %>%
+      leaflet::clearGroup("DrawnROI") %>%
       leaflet::clearMarkers()%>%
       leaflet::clearControls()%>%
       leaflet::addMeasure() %>%
-      leaflet.extras::addDrawToolbar(rectangleOptions = TRUE,
+      leaflet.extras::addDrawToolbar(targetGroup = "DrawnROI",
+                                     rectangleOptions = leaflet.extras::drawRectangleOptions(
+                                       shapeOptions = leaflet.extras::drawShapeOptions(fill = FALSE, fillOpacity = 0)
+                                     ),
                                      polylineOptions = FALSE,
                                      circleOptions = FALSE,
                                      markerOptions = FALSE,
@@ -20,6 +24,7 @@ reset_map <- function(map, draw){
     map <- map%>%
       leaflet.extras::removeDrawToolbar(clearFeatures=TRUE)%>%
       leaflet::clearShapes()%>%
+      leaflet::clearGroup("DrawnROI") %>%
       leaflet::clearMarkers()%>%
       leaflet::clearControls()%>%
       leaflet::addScaleBar(position = "topleft") %>%
@@ -91,7 +96,10 @@ sync_draw_toolbar <- function(map, draw = FALSE, clear_features = FALSE) {
   if (isTRUE(draw)) {
     map <- map %>%
       leaflet.extras::addDrawToolbar(
-        rectangleOptions = TRUE,
+        targetGroup = "DrawnROI",
+        rectangleOptions = leaflet.extras::drawRectangleOptions(
+          shapeOptions = leaflet.extras::drawShapeOptions(fill = FALSE, fillOpacity = 0)
+        ),
         polylineOptions = FALSE,
         circleOptions = FALSE,
         markerOptions = FALSE,
