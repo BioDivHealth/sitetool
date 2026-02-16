@@ -56,8 +56,11 @@ mod_core_mapping_server <- function(id, common){
 
       leaflet::leaflet() %>%
         leaflet::setView(lng = 0, lat = 20, zoom = 2) %>%
-        leaflet::addProviderTiles(initial_bmap, group = "BaseMap") %>%
-        leaflet::addScaleBar(position = "bottomleft") %>%
+        leaflet::addProviderTiles(
+          initial_bmap,
+          group = "BaseMap",
+          options = leaflet::tileOptions(zIndex = 0)
+        ) %>%
         leaflet::addMeasure() %>%
         leaflet.extras::addDrawToolbar(
           rectangleOptions = TRUE,
@@ -67,7 +70,8 @@ mod_core_mapping_server <- function(id, common){
           circleMarkerOptions = FALSE,
           singleFeature = TRUE,
           polygonOptions = FALSE
-        )
+        ) %>%
+        leaflet::addScaleBar(position = "topleft")
     })
 
     # Mark map as ready when widget is mounted
@@ -82,7 +86,7 @@ mod_core_mapping_server <- function(id, common){
       draw_enabled <- isTRUE(common$draw)
       toolbar_loaded <- isolate(draw_toolbar_loaded())
 
-      if (!draw_enabled && !toolbar_loaded) {
+      if (identical(draw_enabled, toolbar_loaded)) {
         return()
       }
 
@@ -101,7 +105,11 @@ mod_core_mapping_server <- function(id, common){
 
       map_proxy() %>%
         leaflet::clearGroup("BaseMap") %>%
-        leaflet::addProviderTiles(input$bmap, group = "BaseMap")
+        leaflet::addProviderTiles(
+          input$bmap,
+          group = "BaseMap",
+          options = leaflet::tileOptions(zIndex = 0)
+        )
     }, ignoreInit = TRUE)
 
     # --- (2) ROI updates ---
@@ -155,10 +163,17 @@ mod_core_mapping_server <- function(id, common){
         names(raster_stack) <- paste0("Raster ", seq_along(raster_stack))
       }
 
+      proxy <- proxy %>% leaflet::clearShapes()
+
+      if (is.null(sf_obj)) {
+        proxy <- proxy %>%
+          leaflet::clearGroup("ROI")
+      } else {
+        proxy <- proxy %>%
+          draw_sf(sf_obj, zoom_box = FALSE, fill_opacity = 0)
+      }
+
       proxy %>%
-        sync_draw_toolbar(draw = draw_enabled, clear_features = TRUE) %>%
-        leaflet::clearShapes() %>%
-        leaflet::clearGroup("ROI") %>%
         add_raster_stack(raster_stack)
 
       raster_groups(names(raster_stack))
@@ -198,8 +213,12 @@ mod_core_mapping_server <- function(id, common){
           common$sf <- bbox_sf
           common$bbox_drawn <- TRUE
         } else {
-          map_proxy() %>%
-            sync_draw_toolbar(draw = isTRUE(common$draw), clear_features = TRUE)
+          if (isTRUE(common$draw)) {
+            map_proxy() %>% leaflet::clearShapes()
+          } else {
+            map_proxy() %>%
+              sync_draw_toolbar(draw = FALSE, clear_features = TRUE)
+          }
           showNotification("Error with selected area.", type = "error")
         }
       }

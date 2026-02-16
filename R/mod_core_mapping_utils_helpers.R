@@ -6,7 +6,6 @@ reset_map <- function(map, draw){
       leaflet::clearShapes() %>%
       leaflet::clearMarkers()%>%
       leaflet::clearControls()%>%
-      leaflet::addScaleBar(position = "bottomleft") %>%
       leaflet::addMeasure() %>%
       leaflet.extras::addDrawToolbar(rectangleOptions = TRUE,
                                      polylineOptions = FALSE,
@@ -14,7 +13,8 @@ reset_map <- function(map, draw){
                                      markerOptions = FALSE,
                                      circleMarkerOptions = FALSE,
                                      singleFeature = TRUE,
-                                     polygonOptions = FALSE)
+                                     polygonOptions = FALSE) %>%
+      leaflet::addScaleBar(position = "topleft")
   }
   else{
     map <- map%>%
@@ -22,7 +22,7 @@ reset_map <- function(map, draw){
       leaflet::clearShapes()%>%
       leaflet::clearMarkers()%>%
       leaflet::clearControls()%>%
-      leaflet::addScaleBar(position = "bottomleft") %>%
+      leaflet::addScaleBar(position = "topleft") %>%
       leaflet::addMeasure()
   }
 
@@ -141,7 +141,7 @@ map_points <- function(map, sites) {
 }
 
 
-draw_sf <- function(map, sf_obj, draw=F, zoom_box=FALSE) {
+draw_sf <- function(map, sf_obj, draw=F, zoom_box=FALSE, fill_opacity = 0.2) {
   if (is.null(sf_obj)) {
     return(map %>% leaflet::clearGroup("ROI"))
   }
@@ -150,7 +150,7 @@ draw_sf <- function(map, sf_obj, draw=F, zoom_box=FALSE) {
 
   map <- map %>%
     leaflet::clearGroup("ROI") %>%
-    leaflet::addPolygons(data = sf_obj, color = "#5365FF", fillOpacity = 0.2, group = "ROI")
+    leaflet::addPolygons(data = sf_obj, color = "#5365FF", fillOpacity = fill_opacity, group = "ROI")
 
   if (zoom_box) {
     map <- map %>%
@@ -182,7 +182,11 @@ add_raster <- function(map, r){
 
     map <- map %>%
       leaflet::clearImages() %>%  # Clear any previous raster
-      leaflet::addRasterImage(r_plot, opacity = 0.8) %>%
+      leaflet::addRasterImage(
+        r_plot,
+        opacity = 0.8,
+        options = leaflet::tileOptions(zIndex = 10)
+      ) %>%
       leaflet::addRasterLegend(r, opacity = 0.8)
   }
   else{
@@ -195,12 +199,17 @@ add_raster <- function(map, r){
     max_val <- summary_stats$max_val
     colors <- rev(hcl.colors(10, palette = "Terrain"))
 
-    map <- map%>%
-      leaflet::addRasterImage(r_plot, colors = leaflet::colorNumeric(
-        palette = colors,
-        domain = c(min_val, max_val),
-      ), opacity = 0.8,
-      group=group)
+    map <- map %>%
+      leaflet::addRasterImage(
+        r_plot,
+        colors = leaflet::colorNumeric(
+          palette = colors,
+          domain = c(min_val, max_val)
+        ),
+        opacity = 0.8,
+        group = group,
+        options = leaflet::tileOptions(zIndex = 10)
+      )
 
   }
 }
@@ -264,8 +273,14 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
       pal <- leaflet::colorFactor(palette = colors, domain = labels, levels = labels)
 
       # Add raster and legend
-        map <- map%>%
-          leaflet::addRasterImage(r, colors = colors, opacity = 0.8, group=name) %>%
+        map <- map %>%
+          leaflet::addRasterImage(
+            r,
+            colors = colors,
+            opacity = 0.8,
+            group = name,
+            options = leaflet::tileOptions(zIndex = 10)
+          ) %>%
           leaflegend::addLegendFactor(
             pal = pal,
             values = factor(labels, levels = labels),
@@ -293,7 +308,13 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
                                    domain = c(min_val, max_val))
 
         map <- map %>%
-          leaflet::addRasterImage(r, colors = pal, opacity = 0.8, group = name) %>%
+          leaflet::addRasterImage(
+            r,
+            colors = pal,
+            opacity = 0.8,
+            group = name,
+            options = leaflet::tileOptions(zIndex = 10)
+          ) %>%
           leaflegend::addLegendNumeric(
             pal = pal,
             values = vals_sample,
@@ -312,7 +333,7 @@ add_raster_stack <- function(map, rasters, max_raster_size = 5e7) {
   map <- map %>%
     leaflet::addLayersControl(
       baseGroups = names(rasters),
-      options = leaflet::layersControlOptions(collapsed = FALSE)
+      options = leaflet::layersControlOptions(collapsed = FALSE, autoZIndex = FALSE)
     )
 
   map

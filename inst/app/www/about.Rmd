@@ -26,8 +26,6 @@ raster-derived characteristics (for example, land cover, elevation, or
 NDVI) for a list of sites, and see where potential sites fall along a
 gradient of other potential sites.
 
-![](SiteTool_HexLogo.png){width="174"}
-
 The tool's source code (including the `sitetool` R package) is also
 available for local deployment on GitHub [link hidden for blind review], which allows larger file uploads.
 
