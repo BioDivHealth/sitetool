@@ -198,10 +198,8 @@ uploaded rasters.
 
     <img src="inst/app/www/images/Step3_2.png" width="453" />
 
-    You can add and remove sites from your “generated” and “selected
-    lists. The map will also update. In this example, all snowy sites
-    were added to the selected
-    sites.![](inst/app/www/images/Step3_3.png)
+    You can add and remove sites from your “generated” and “selected"
+    lists. The map will also update.
 
 3.  **Statistical Comparison**
 

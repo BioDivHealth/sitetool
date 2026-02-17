@@ -17,7 +17,7 @@ mod_step2_ui <- function(id) {
             ## Site Type ##
             title = 'Step 2. Generate a list of potential sites.',
             width = 350,
-            selectInput(ns('selection_type'), h6('Please select a sampling procedure:'), choices = c("none", "random", "village")),
+            selectInput(ns('selection_type'), h6('Please select a sampling procedure:'), choices = c("none", "random", "populated places" = "village")),
 
             # Params for random type
             conditionalPanel(

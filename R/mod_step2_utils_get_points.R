@@ -476,7 +476,7 @@ get_village_points <- function(area, crs = 4326, in_app = FALSE) {
   if (in_app) {
     progress <- shiny::Progress$new()
     on.exit(progress$close())
-    progress$set(message = "Obtaining village data", value = 0)
+    progress$set(message = "Obtaining populated place data", value = 0)
   }
 
   bbox_sf <- check_validity(area, crs)
@@ -490,11 +490,11 @@ get_village_points <- function(area, crs = 4326, in_app = FALSE) {
   }, error = function(e) {
     if (in_app) {
       shiny::showNotification(
-        paste("Error retrieving village points:", e$message),
+        paste("Error retrieving populated place points:", e$message),
         type = "error"
       )
     } else {
-      message("Error retrieving village points: ", e$message)
+      message("Error retrieving populated place points: ", e$message)
     }
     sf::st_sf(site_id = integer(0),
               site = character(0),

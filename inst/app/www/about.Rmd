@@ -116,12 +116,13 @@ sites. You may also skip this step by leaving sampling procedure as
 
 ![](images/Step2_1.png)
 
-2.  **Village Sites**
+2.  **Populated Places Sites**
 
-    Village sites will find all of the towns/villages/cities in the
-    selected area using OpenStreetMap. You can have the tool find all of
-    the villages in an area or randomly select a subset from that
-    region. Note that if you select a very large area for village sites,
+    Populated places will find all of the towns/villages/cities in
+    the selected area using OpenStreetMap. You can have the tool find all
+    of the populated places in an area or randomly select a subset from
+    that region. Note that if you select a very large area for populated
+    place sites,
     the request may time out.
 
 ![](images/Step2_2.png)
@@ -178,9 +179,7 @@ uploaded rasters.
     ![](images/Step3_2.png){width="453"}
 
     You can add and remove sites from your "generated" and "selected
-    lists. The map will also update. In this example, all snowy sites
-    were added to the selected
-    sites.![](images/Step3_3.png)
+    lists. The map will also update.
 
 ```{=html}
 <!-- -->
