@@ -152,12 +152,12 @@ sites. You may also skip this step by leaving sampling procedure as
 
 ![](inst/app/www/images/Step2_1.png)
 
-2.  **Village Sites**
+2.  **Populated Sites**
 
-    Village sites will find all of the towns/villages/cities in the
+    Populated sites will find all of the towns/villages/cities in the
     selected area using OpenStreetMap. You can have the tool find all of
-    the villages in an area or randomly select a subset from that
-    region. Note that if you select a very large area for village sites,
+    the populated sites in an area or randomly select a subset from that
+    region. Note that if you select a very large area for populated sites,
     the request may time out.
 
 ![](inst/app/www/images/Step2_2.png)

@@ -36,7 +36,7 @@ The procedure can also be followed outside of the Shiny interface. These functio
 
 ### Get a list of sites
 
-The package has two options for obtaining a list of potential sites: random sites or village sites. Random sites are generated simply from a simple random sample within the study area (a provided shapefile or bounding box) and village sites are any cities within the study area, obtained via OpenStreetMap.
+The package has two options for obtaining a list of potential sites: random sites or populated sites. Random sites are generated simply from a simple random sample within the study area (a provided shapefile or bounding box) and populated sites are any cities within the study area, obtained via OpenStreetMap.
 
 The user must specify the area of interest (either via a bounding box or shapefile) and the number of desired points. To get a list of random sites, execute the following command:
 

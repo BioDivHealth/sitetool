@@ -116,13 +116,13 @@ sites. You may also skip this step by leaving sampling procedure as
 
 ![](images/Step2_1.png)
 
-2.  **Populated Places Sites**
+2.  **Populated Sites**
 
-    Populated places will find all of the towns/villages/cities in
+    Populated sites will find all of the towns/villages/cities in
     the selected area using OpenStreetMap. You can have the tool find all
-    of the populated places in an area or randomly select a subset from
+    of the populated sites in an area or randomly select a subset from
     that region. Note that if you select a very large area for populated
-    place sites,
+    sites,
     the request may time out.
 
 ![](images/Step2_2.png)
