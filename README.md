@@ -241,7 +241,7 @@ The app can support categorical land cover rasters such as:
 3.  [Copernicus Dynamic Land Cover](https://lcviewer.vito.be/)
 
 This repository has a series of Google Earth Engine scripts to assist
-with exporting this data: *{link hidden for blind review}*.
+with exporting this data: <https://github.com/BioDivHealth/GEE_Scripts>.
 You can also visit the above sites to download a raster for your region
 of interest. If your region covers multiple tiles, please merge tiles
 into one file prior to uploading. Please ensure the raster CRS is WGS
@@ -263,6 +263,6 @@ If you have any questions, encounter a problem, or would like to suggest
 improvements:
 
 - 🐛 **Report a bug:** [Open an
-  issue] *{link hidden for blind review}*
+  issue](https://github.com/BioDivHealth/sitetool/issues)
 - 💡 **Suggest a feature:** [Start a
-  discussion] *{link hidden for blind review}*
+  discussion](https://github.com/BioDivHealth/sitetool/discussions)
